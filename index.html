@@ -2,11 +2,25 @@
 <html lang="pt-br">
 <head>
 <meta charset="utf-8">
-<meta http-equiv="refresh" content="0; url=https://reconstruction-colleges-holdem-bulk.trycloudflare.com/geral">
 <title>Painel Geral - Alpha</title>
 </head>
 <body>
-<p>Redirecionando para o Painel Geral... Se nao for automatico, <a href="https://reconstruction-colleges-holdem-bulk.trycloudflare.com/geral">clique aqui</a>.</p>
-<script>window.location.replace("https://reconstruction-colleges-holdem-bulk.trycloudflare.com/geral");</script>
+<p id="msg">Redirecionando para o Painel Geral...</p>
+<script>
+fetch('link.txt?_=' + Date.now(), { cache: 'no-store' })
+  .then(function (r) { return r.text(); })
+  .then(function (link) {
+    link = link.trim();
+    if (!link) throw new Error('link vazio');
+    var destino = link + '/geral';
+    document.getElementById('msg').innerHTML =
+      'Redirecionando para o Painel Geral... Se nao for automatico, <a href="' + destino + '">clique aqui</a>.';
+    window.location.replace(destino);
+  })
+  .catch(function () {
+    document.getElementById('msg').textContent =
+      'Nao foi possivel carregar o link atual. Recarregue a pagina em instantes.';
+  });
+</script>
 </body>
 </html>
