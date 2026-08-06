@@ -1,0 +1,26 @@
+<!doctype html>
+<html lang="pt-br">
+<head>
+<meta charset="utf-8">
+<title>Qualidade das Ligações - Alpha</title>
+</head>
+<body>
+<p id="msg">Redirecionando para o Painel de Qualidade das Ligações...</p>
+<script>
+fetch('link.txt?_=' + Date.now(), { cache: 'no-store' })
+  .then(function (r) { return r.text(); })
+  .then(function (link) {
+    link = link.trim();
+    if (!link) throw new Error('link vazio');
+    var destino = link + '/qualidade';
+    document.getElementById('msg').innerHTML =
+      'Redirecionando para o Painel de Qualidade das Ligações... Se nao for automatico, <a href="' + destino + '">clique aqui</a>.';
+    window.location.replace(destino);
+  })
+  .catch(function () {
+    document.getElementById('msg').textContent =
+      'Nao foi possivel carregar o link atual. Recarregue a pagina em instantes.';
+  });
+</script>
+</body>
+</html>
