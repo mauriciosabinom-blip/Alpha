@@ -1,1 +1,1 @@
-https://begins-survivor-pgp-george.trycloudflare.com
+https://api.trycloudflare.com
