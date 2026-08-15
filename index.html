@@ -3,24 +3,12 @@
 <head>
 <meta charset="utf-8">
 <title>Painel Geral - Alpha</title>
+<meta http-equiv="refresh" content="0; url=https://dashboard-alpha.onrender.com/geral">
 </head>
 <body>
-<p id="msg">Redirecionando para o Painel Geral...</p>
+<p>Redirecionando para o Painel Geral... Se nao for automatico, <a href="https://dashboard-alpha.onrender.com/geral">clique aqui</a>.</p>
 <script>
-fetch('link.txt?_=' + Date.now(), { cache: 'no-store' })
-  .then(function (r) { return r.text(); })
-  .then(function (link) {
-    link = link.trim();
-    if (!link) throw new Error('link vazio');
-    var destino = link + '/geral';
-    document.getElementById('msg').innerHTML =
-      'Redirecionando para o Painel Geral... Se nao for automatico, <a href="' + destino + '">clique aqui</a>.';
-    window.location.replace(destino);
-  })
-  .catch(function () {
-    document.getElementById('msg').textContent =
-      'Nao foi possivel carregar o link atual. Recarregue a pagina em instantes.';
-  });
+window.location.replace('https://dashboard-alpha.onrender.com/geral');
 </script>
 </body>
 </html>
