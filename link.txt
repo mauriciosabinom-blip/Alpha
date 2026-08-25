@@ -1,1 +1,1 @@
-https://folks-province-deer-sells.trycloudflare.com
+https://api.trycloudflare.com
