@@ -1,1 +1,1 @@
-https://api.trycloudflare.com
+https://ahead-thehun-logging-particle.trycloudflare.com
