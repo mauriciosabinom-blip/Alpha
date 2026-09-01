@@ -1,1 +1,1 @@
-https://contribute-course-progress-taylor.trycloudflare.com
+https://api.trycloudflare.com
