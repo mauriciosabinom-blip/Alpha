@@ -209,3 +209,12 @@ blockquote{margin:18px 0 14px;padding:14px 16px;text-align:left;color:var(--text
 .sheet p{line-height:1.5;margin:0 0 18px}
 .sheet-icon{font-size:2.2rem}
 @keyframes slideUp{from{transform:translateY(100%)}to{transform:none}}
+
+/* ---------- dica do gesto de voltar ---------- */
+.back-hint{max-width:320px;color:var(--muted);line-height:1.5;font-size:.95rem}
+.back-hint b{color:var(--text)}
+.swipe-demo{position:relative;height:64px;margin:0 auto 10px;width:220px}
+.homebar{position:absolute;bottom:12px;left:50%;transform:translateX(-50%);width:140px;height:6px;border-radius:4px;background:var(--text);opacity:.85}
+.finger{position:absolute;bottom:0;left:30px;font-size:2rem;animation:swipeR 1.8s ease-in-out infinite}
+@keyframes swipeR{0%{transform:translateX(0);opacity:0}15%{opacity:1}70%{transform:translateX(130px);opacity:1}100%{transform:translateX(140px);opacity:0}}
+.tip.warn{border:1px solid color-mix(in srgb,var(--doubt) 50%,transparent);margin:0 0 16px}

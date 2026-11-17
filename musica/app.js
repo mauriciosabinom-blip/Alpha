@@ -426,7 +426,7 @@ function renderCard() {
   const art = bgStyle(song);
   if ($('cardArt').dataset.song !== song.id) { $('cardArt').style.cssText = art; $('cardThumb').style.cssText = art; $('cardArt').dataset.song = song.id; }
   $('gateOff').classList.toggle('hidden', !session.gate);
-  if (session.gate) $('gateOff').textContent = `Não mostrar mais antes do ${session.gate.name}`;
+  if (session.gate) $('gateOff').textContent = session.gate.all ? 'Não mostrar mais antes dos apps' : `Não mostrar mais antes do ${session.gate.name}`;
   $('cardCount').textContent = session.gate ? `🔓 ${session.done + 1}/${session.done + session.left}` : isFinite(session.left) ? `${session.done + 1}/${session.done + session.left}` : `${S.daily.done}/${S.settings.goal}`;
   $('cardCount').classList.toggle('hidden', false);
 
@@ -688,15 +688,17 @@ document.addEventListener('visibilitychange', () => {
  *   .../musica/?gate=instagram
  * O Refrão mostra a(s) frase(s) e depois devolve a pessoa ao app.        */
 const GATE_APPS = {
+  todos: ['Todos os apps', null],
   instagram: ['Instagram', 'instagram://'], whatsapp: ['WhatsApp', 'whatsapp://'], tiktok: ['TikTok', 'tiktok://'],
   youtube: ['YouTube', 'youtube://'], facebook: ['Facebook', 'fb://'], x: ['X (Twitter)', 'twitter://'],
   spotify: ['Spotify', 'spotify://'], netflix: ['Netflix', 'nflx://'], telegram: ['Telegram', 'tg://'],
-  kwai: ['Kwai', 'kwai://'], linkedin: ['LinkedIn', 'linkedin://'], safari: ['Safari', 'x-web-search://']
+  kwai: ['Kwai', 'kwai://'], linkedin: ['LinkedIn', 'linkedin://']
 };
 let gateCurrent = null;
 function gateFromKey(key) {
   const k = (key || '').toLowerCase(); const a = GATE_APPS[k];
-  return a ? { key: k, name: a[0], url: a[1] } : { key: k, name: 'o app', url: null };
+  if (k === 'todos' || !a) return { key: k, name: 'seu app', url: null, all: true };
+  return { key: k, name: a[0], url: a[1] };
 }
 function markGatePassed() { S.gateLast = Date.now(); save(); }
 function leaveTo(g) { if (g?.url) location.href = g.url; }
@@ -705,17 +707,19 @@ function gateDone(g, n) {
   $('gateDoneTitle').textContent = n ? 'Liberado! 🔓' : 'Pulou essa 👋';
   $('gateDoneSub').textContent = n ? `${n} frase${n > 1 ? 's' : ''} a mais no seu inglês hoje (${S.daily.done}/${S.settings.goal}).` : 'Sem problema, a frase volta mais tarde.';
   $('gateGo').textContent = `Abrir ${g.name} →`; $('gateGo').classList.toggle('hidden', !g.url);
+  $('gateBackHint').classList.toggle('hidden', !!g.url);
   $('gateDoneBox').classList.remove('hidden');
 }
 function addGateApp(k) { if (GATE_APPS[k] && !S.gateApps.includes(k)) { S.gateApps.push(k); save(); } }
-const gateNames = () => S.gateApps.map(k => GATE_APPS[k]?.[0]).filter(Boolean).join(', ') || 'seus apps';
+const gateNames = () => S.gateApps.includes('todos') ? 'todos os apps' : (S.gateApps.map(k => GATE_APPS[k]?.[0]).filter(Boolean).join(', ') || 'seus apps');
 // pausado: a automação do iPhone continua existindo, mas o Refrão devolve na hora
 function gatePaused(g) {
   gateCurrent = g;
   $('gateDoneTitle').textContent = 'Refrão pausado ⏸';
-  $('gateDoneSub').textContent = `As frases antes do ${g.name} estão desativadas. Para não abrir mais nada, apague a automação no app Atalhos.`;
+  $('gateDoneSub').textContent = `As frases antes ${g.all ? 'dos apps' : 'do ' + g.name} estão desativadas. Para não abrir mais nada, apague a automação no app Atalhos.`;
   $('gateGo').textContent = `Abrir ${g.name} →`; $('gateGo').classList.toggle('hidden', !g.url);
   $('gateReactivate').classList.remove('hidden');
+  $('gateBackHint').classList.toggle('hidden', !!g.url);
   $('gateDoneBox').classList.remove('hidden');
 }
 function setGateOn(on) { S.settings.gateOn = on; save(); renderGateStatus(); }
@@ -763,7 +767,12 @@ function renderSetup() {
   if (!sel.options.length) sel.innerHTML = Object.entries(GATE_APPS).map(([k, a]) => `<option value="${k}">${esc(a[0])}</option>`).join('');
   const base = location.origin + location.pathname.replace(/index\.html$/, '');
   $('setupUrl').textContent = `${base}?gate=${sel.value}`;
-  document.querySelectorAll('.setup-app').forEach(e => e.textContent = GATE_APPS[sel.value][0]);
+  const all = sel.value === 'todos';
+  $('step2').innerHTML = all
+    ? 'Toque em <b>App</b> → <b>Escolher</b> → marque <b>todos os apps</b> da lista, <b>MENOS o Safari e o Atalhos</b> → deixe <b>"Está Aberto"</b> marcado.'
+    : `Toque em <b>App</b> → <b>Escolher</b> → marque <b>${esc(GATE_APPS[sel.value][0])}</b> → deixe <b>"Está Aberto"</b> marcado.`;
+  $('stepLast').innerHTML = `Toque em <b>OK</b>. Pronto! Abra ${all ? 'qualquer app' : 'o <b>' + esc(GATE_APPS[sel.value][0]) + '</b>'} para testar.`;
+  $('allWarn').classList.toggle('hidden', !all);
 }
 
 rollDay();
