@@ -725,7 +725,7 @@ function gatePaused(g) {
 function setGateOn(on) { S.settings.gateOn = on; save(); renderGateStatus(); }
 function renderGateStatus() {
   const el = $('gateStatus'); if (!el) return;
-  if (!S.gateApps.length) el.innerHTML = `📱 Ver uma frase antes do Instagram, WhatsApp… <button class="linkbtn" data-gs="setup">Configurar</button>`;
+  if (!S.gateApps.length) el.innerHTML = `<button class="btn gate-cta" data-gs="setup">📱 Ver uma frase antes de todos os apps <span>Ativar →</span></button>`;
   else if (S.settings.gateOn !== false) el.innerHTML = `🔓 Frase antes de ${esc(gateNames())}: <b>ativada</b> · <button class="linkbtn" data-gs="off">Desativar</button>`;
   else el.innerHTML = `⏸ Frase antes de ${esc(gateNames())}: <b>desativada</b> · <button class="linkbtn" data-gs="on">Ativar</button>`;
 }
@@ -786,6 +786,7 @@ if (gateParam) {
   else if (S.songs[S.activeSongId]) startSession(S.settings.gateCount || 1, null, g);
   else { gateCurrent = g; gateDone(g, 0); toast('Escolha uma música no Refrão para começar 🎵', 4000); }
 } else if (!Object.keys(S.songs).length) { openPick(true); offerGate(); }
+else if (!S.gateOffered) offerGate(() => maybeFlash()); // quem já usava o app também recebe o convite
 else maybeFlash();
 
 if ('serviceWorker' in navigator) navigator.serviceWorker.register('sw.js').catch(() => {});

@@ -218,3 +218,6 @@ blockquote{margin:18px 0 14px;padding:14px 16px;text-align:left;color:var(--text
 .finger{position:absolute;bottom:0;left:30px;font-size:2rem;animation:swipeR 1.8s ease-in-out infinite}
 @keyframes swipeR{0%{transform:translateX(0);opacity:0}15%{opacity:1}70%{transform:translateX(130px);opacity:1}100%{transform:translateX(140px);opacity:0}}
 .tip.warn{border:1px solid color-mix(in srgb,var(--doubt) 50%,transparent);margin:0 0 16px}
+
+.gate-cta{color:var(--text);text-align:left;width:100%;justify-content:space-between;font-size:.95rem;margin-top:6px;border-color:color-mix(in srgb,var(--accent) 45%,transparent)}
+.gate-cta span{color:var(--accent2);font-weight:800;white-space:nowrap}
