@@ -184,3 +184,16 @@ blockquote{margin:18px 0 14px;padding:14px 16px;text-align:left;color:var(--text
 #confetti i{position:absolute;top:-30px;font-style:normal;font-size:26px;animation:fall 1.9s cubic-bezier(.3,.6,.5,1) forwards}
 @keyframes fall{to{transform:translateY(110vh) rotate(540deg);opacity:.2}}
 @media (prefers-reduced-motion:reduce){*{animation-duration:.01ms!important;animation-iteration-count:1!important}}
+
+/* ---------- SETUP (Atalhos) ---------- */
+.url-box{display:flex;align-items:center;gap:8px;padding:8px 8px 8px 14px;margin-bottom:18px}
+.url-box code{flex:1;min-width:0;word-break:break-all;font-size:.82rem;color:var(--doubt);user-select:all;-webkit-user-select:all}
+.url-box .btn{min-height:42px;flex-shrink:0}
+.steps{padding-left:22px;line-height:1.55;overflow-wrap:anywhere}
+.steps li{margin-bottom:12px}
+.recipe{margin-top:10px;display:flex;flex-direction:column;gap:6px;font-size:.88rem}
+.recipe div{position:relative;background:var(--glass);border:1px solid var(--line);border-radius:12px;padding:8px 10px 8px 38px;overflow-wrap:anywhere}
+.recipe div.in{margin-left:18px}.recipe div.in2{margin-left:36px}
+.recipe span{position:absolute;left:10px;top:9px;width:20px;height:20px;border-radius:50%;background:var(--accent);color:#fff;font-size:.72rem;font-weight:800;display:inline-grid;place-items:center}
+.recipe code,.steps code{background:rgba(0,0,0,.35);padding:1px 6px;border-radius:6px}
+#gateDoneBox{z-index:30;padding:24px}

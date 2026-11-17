@@ -133,6 +133,10 @@
   <label class="field">Frases a cada desbloqueio
     <select id="setBurst"><option value="1">1 frase</option><option value="3">3 frases</option><option value="5">5 frases</option></select>
   </label>
+  <button class="btn primary" id="btnSetup" style="width:100%;margin-bottom:16px">📱 Mostrar frase antes do Instagram, WhatsApp…</button>
+  <label class="field">Frases antes de abrir o app
+    <select id="setGate"><option value="1">1 frase</option><option value="2">2 frases</option><option value="3">3 frases</option></select>
+  </label>
   <label class="field check glass"><input type="checkbox" id="setUnlock"> Mostrar frase ao voltar para o app / desbloquear</label>
   <label class="field check glass"><input type="checkbox" id="setSpeak"> Falar a frase em inglês automaticamente</label>
   <label class="field check glass"><input type="checkbox" id="setMix"> Misturar revisões de músicas antigas</label>
@@ -143,6 +147,44 @@
   </div>
   <button class="btn danger" id="btnReset">Apagar tudo</button>
   <p class="muted small" style="line-height:1.5;margin-top:18px">Seus dados ficam salvos só neste celular. Letras: lrclib.net · Capas: iTunes · Tradução automática: Google Tradutor (corrija tocando em ✎ no cartão).</p>
+</section>
+
+<!-- ===== SETUP: Atalhos do iPhone ===== -->
+<section id="setup" class="screen hidden">
+  <header class="topbar">
+    <button class="icon-btn" id="setupBack" aria-label="Voltar">←</button>
+    <div class="brand" style="font-size:1.15rem">Antes dos seus apps</div>
+    <span style="width:44px"></span>
+  </header>
+  <p class="muted" style="line-height:1.5;margin-top:0">Toda vez que você abrir o app escolhido, o Refrão aparece primeiro com uma frase.
+    Respondeu (ou tocou em ✕), ele te leva de volta. Depois disso ele espera 10 minutos antes de aparecer de novo.</p>
+  <label class="field">Qual app?
+    <select id="setupApp"></select>
+  </label>
+  <div class="glass url-box"><code id="setupUrl"></code><button class="btn" id="setupCopy">Copiar</button></div>
+
+  <ol class="steps">
+    <li>Abra o app <b>Atalhos</b> do iPhone → aba <b>Automação</b> → <b>+</b> (Nova Automação).</li>
+    <li>Toque em <b>App</b> → <b>Escolher</b> → marque <b class="setup-app"></b> → deixe <b>"Está Aberto"</b> marcado.</li>
+    <li>Marque <b>"Executar Imediatamente"</b> (e desligue "Notificar ao Executar", se aparecer) → <b>Seguinte</b> → <b>Novo Atalho em Branco</b>.</li>
+    <li>Adicione as ações abaixo, nesta ordem (use a busca de ações):
+      <div class="recipe">
+        <div><span>1</span><b>Obter Arquivo da Pasta</b> — Pasta: <i>Atalhos</i> · Caminho: <code>refrao.txt</code> · desligue <i>"Erro se Não Encontrado"</i></div>
+        <div><span>2</span><b>Se</b> <i>Arquivo</i> <b>tem qualquer valor</b></div>
+        <div class="in"><span>3</span><b>Obter Tempo Entre Datas</b> — entre <i>Arquivo</i> e <i>Data Atual</i>, em <b>Minutos</b></div>
+        <div class="in"><span>4</span><b>Se</b> <i>Tempo Entre Datas</i> <b>é menor que</b> <code>10</code></div>
+        <div class="in2"><span>5</span><b>Parar Este Atalho</b></div>
+        <div class="in"><span>·</span><i>Fim do Se</i> (o iPhone já coloca sozinho)</div>
+        <div><span>·</span><i>Fim do Se</i></div>
+        <div><span>6</span><b>Data Atual</b></div>
+        <div><span>7</span><b>Salvar Arquivo</b> — desligue <i>"Perguntar Onde Salvar"</i> · Subcaminho: <code>refrao.txt</code> · ligue <i>"Substituir se Existir"</i></div>
+        <div><span>8</span><b>Abrir URLs</b> — cole o link copiado acima</div>
+      </div>
+    </li>
+    <li>Toque em <b>OK</b>. Pronto! Abra o <b class="setup-app"></b> para testar.</li>
+  </ol>
+  <div class="tip glass"><b>Por que o arquivo refrao.txt?</b> Ele guarda a hora da última frase. Sem ele, ao voltar para o app o Atalho abriria o Refrão de novo, sem parar.<br><br>
+    <b>Dica:</b> o Atalho abre o Refrão no <b>Safari</b>. Para seu progresso ficar num lugar só, use o Refrão sempre pelo Safari.</div>
 </section>
 
 <!-- ===== FLASHCARD (overlay) ===== -->
@@ -183,6 +225,16 @@
     <button class="btn doubt" id="btnDoubt">?<span>Dúvida</span></button>
     <button class="btn yes" id="btnYes">✓<span>Entendi</span></button>
   </div>
+</div>
+
+<!-- porteiro concluído -->
+<div id="gateDoneBox" class="overlay center-screen hidden">
+  <div class="art-shade"></div>
+  <div style="font-size:3.4rem">🎧</div>
+  <h2 id="gateDoneTitle" style="font-family:var(--serif);font-size:2rem;margin:0">Liberado! 🔓</h2>
+  <div id="gateDoneSub" class="muted" style="max-width:320px"></div>
+  <button class="btn primary big" id="gateGo" style="max-width:340px">Abrir →</button>
+  <button class="btn" id="gateStay" style="max-width:340px;width:100%">Continuar estudando no Refrão</button>
 </div>
 
 <!-- word popover -->

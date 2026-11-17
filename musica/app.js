@@ -24,7 +24,7 @@ const defaults = () => ({
   songs: {}, activeSongId: null,
   daily: { date: '', done: 0, chosen: false },
   streak: { count: 0, last: '' },
-  settings: { goal: 20, burst: 3, unlock: true, speak: false, mix: true },
+  settings: { goal: 20, burst: 3, unlock: true, speak: false, mix: true, gateCount: 1 },
   words: {}
 });
 let S = load();
@@ -134,7 +134,7 @@ function applyTheme(song) {
 }
 
 /* ---------------- telas ---------------- */
-const SCREENS = ['home', 'pick', 'confirm', 'loading', 'lyrics', 'settings'];
+const SCREENS = ['home', 'pick', 'confirm', 'loading', 'lyrics', 'settings', 'setup'];
 let current = 'home';
 function show(id) { SCREENS.forEach(s => $(s).classList.toggle('hidden', s !== id)); current = id; window.scrollTo(0, 0); if (id === 'home') renderHome(); }
 
@@ -378,21 +378,24 @@ function nextPhrase() {
 }
 
 /* ---------------- sessão de cartões ---------------- */
-let session = null; // { left, done, cur:[song,phrase], revealed, helped }
-function startSession(count, forced) {
+let session = null; // { left, done, cur:[song,phrase], revealed, helped, gate }
+function startSession(count, forced, gate) {
   if (!S.songs[S.activeSongId] && !forced) return;
   hideWordPop();
-  session = { left: count, done: 0, cur: null, revealed: false, helped: false };
+  session = { left: count, done: 0, cur: null, revealed: false, helped: false, gate: gate || null };
   $('card').classList.remove('hidden');
   nextCard(forced);
 }
 function endSession() {
+  const g = session?.gate, n = session?.done || 0;
   $('card').classList.add('hidden'); session = null; hideWordPop(); speechSynthesis?.cancel();
+  if (g) return gateDone(g, n);
   if (current === 'home') renderHome(); else if (current === 'lyrics') renderLyrics();
 }
 function nextCard(forced) {
   if (session.left <= 0) {
     const n = session.done;
+    if (session.gate) return endSession();
     endSession(); toast(n ? `Pronto! ${n} frase${n > 1 ? 's' : ''} treinada${n > 1 ? 's' : ''} ✓` : 'Pronto!'); return;
   }
   const pair = forced || nextPhrase();
@@ -421,11 +424,12 @@ function renderCard() {
   $('cardNotes').innerHTML = Array.from({ length: MAX_LEVEL }, (_, i) => `<i class="${i < lvl ? 'on' : ''}">♪</i>`).join('');
   const art = bgStyle(song);
   if ($('cardArt').dataset.song !== song.id) { $('cardArt').style.cssText = art; $('cardThumb').style.cssText = art; $('cardArt').dataset.song = song.id; }
-  $('cardCount').textContent = isFinite(session.left) ? `${session.done + 1}/${session.done + session.left}` : `${S.daily.done}/${S.settings.goal}`;
+  $('cardCount').textContent = session.gate ? `🔓 ${session.done + 1}/${session.done + session.left}` : isFinite(session.left) ? `${session.done + 1}/${session.done + session.left}` : `${S.daily.done}/${S.settings.goal}`;
   $('cardCount').classList.toggle('hidden', false);
 
   let banner = '';
-  if (!p.seen) banner = p.count > 1 ? `⭐ Frase nova · aparece ${p.count}x na música` : '✨ Frase nova';
+  if (session.gate && session.done === 0) banner = `Antes do ${session.gate.name}: uma frase rapidinha 🎵`;
+  else if (!p.seen) banner = p.count > 1 ? `⭐ Frase nova · aparece ${p.count}x na música` : '✨ Frase nova';
   else if (lvl === MAX_LEVEL) banner = '🏆 Você dominou essa! Ainda lembra?';
   else if (lvl === 4) banner = '🧠 Sem tradução: você sabe o que significa?';
   else if (lvl >= 1) banner = `Nível ${lvl} · complete mentalmente as palavras escondidas`;
@@ -503,6 +507,7 @@ function answer(knew) {
   if (knew && p.level === MAX_LEVEL && before < MAX_LEVEL && song.phrases.every(x => x.level === MAX_LEVEL)) {
     setTimeout(() => { confetti(['🏆', '🎤', '🎉', '⭐']); toast(`Você dominou "${song.title}" inteira! Que tal escolher a próxima? 🎤`, 5000); }, 500);
   }
+  if (session.gate && session.left <= 0) { const g = session.gate; markGatePassed(); leaveTo(g); } // dentro do toque: o Safari permite abrir o app
   setTimeout(() => nextCard(), 950);
 }
 function reveal() {
@@ -560,7 +565,19 @@ function renderLyrics() {
 $('btnStudy').onclick = () => startSession(Infinity);
 $('btnPick').onclick = () => openPick(false);
 $('btnLyrics').onclick = () => { renderLyrics(); show('lyrics'); };
+$('btnSetup').onclick = () => { renderSetup(); show('setup'); };
+$('setupBack').onclick = () => show('settings');
+$('setupApp').onchange = renderSetup;
+$('setupCopy').onclick = async () => {
+  const t = $('setupUrl').textContent;
+  try { await navigator.clipboard.writeText(t); toast('Link copiado ✓'); }
+  catch (e) { const r = document.createRange(); r.selectNodeContents($('setupUrl')); getSelection().removeAllRanges(); getSelection().addRange(r); toast('Selecionei o link — toque em Copiar'); }
+};
+$('setGate').onchange = e => { S.settings.gateCount = +e.target.value; save(); };
+$('gateGo').onclick = () => gateCurrent && leaveTo(gateCurrent);
+$('gateStay').onclick = () => { $('gateDoneBox').classList.add('hidden'); gateCurrent = null; show('home'); };
 $('btnSettings').onclick = () => {
+  $('setGate').value = S.settings.gateCount || 1;
   $('setGoal').value = S.settings.goal; $('setBurst').value = S.settings.burst;
   $('setUnlock').checked = S.settings.unlock; $('setSpeak').checked = S.settings.speak; $('setMix').checked = S.settings.mix;
   show('settings');
@@ -608,7 +625,7 @@ $('importFile').onchange = async e => {
 $('btnReset').onclick = () => { if (confirm('Apagar todas as músicas e o progresso?')) { S = defaults(); save(); show('home'); } };
 
 // cartão
-$('cardClose').onclick = endSession;
+$('cardClose').onclick = () => { const g = session?.gate; endSession(); if (g) leaveTo(g); };
 $('btnYes').onclick = () => answer(true);
 $('btnNo').onclick = () => answer(false);
 $('btnDoubt').onclick = reveal;
@@ -653,7 +670,7 @@ function maybeFlash() {
   rollDay();
   if (!S.daily.chosen && current !== 'confirm' && current !== 'loading') { if (!session) openPick(true); return; }
   if (!S.settings.unlock || session || !S.songs[S.activeSongId]) return;
-  if (['pick', 'confirm', 'loading', 'settings'].includes(current)) return;
+  if (['pick', 'confirm', 'loading', 'settings', 'setup'].includes(current) || gateCurrent) return;
   startSession(S.settings.burst);
 }
 document.addEventListener('visibilitychange', () => {
@@ -661,10 +678,47 @@ document.addEventListener('visibilitychange', () => {
   if (Date.now() - hiddenAt >= UNLOCK_GAP_MS) maybeFlash();
 });
 
-/* ---------------- início ---------------- */
+/* ---------------- modo porteiro (Atalhos do iPhone) ----------------
+ * Uma automação do app Atalhos ("quando o Instagram for aberto") abre
+ *   .../musica/?gate=instagram
+ * O Refrão mostra a(s) frase(s) e depois devolve a pessoa ao app.        */
+const GATE_APPS = {
+  instagram: ['Instagram', 'instagram://'], whatsapp: ['WhatsApp', 'whatsapp://'], tiktok: ['TikTok', 'tiktok://'],
+  youtube: ['YouTube', 'youtube://'], facebook: ['Facebook', 'fb://'], x: ['X (Twitter)', 'twitter://'],
+  spotify: ['Spotify', 'spotify://'], netflix: ['Netflix', 'nflx://'], telegram: ['Telegram', 'tg://'],
+  kwai: ['Kwai', 'kwai://'], linkedin: ['LinkedIn', 'linkedin://'], safari: ['Safari', 'x-web-search://']
+};
+let gateCurrent = null;
+function gateFromKey(key) {
+  const k = (key || '').toLowerCase(); const a = GATE_APPS[k];
+  return a ? { key: k, name: a[0], url: a[1] } : { key: k, name: 'o app', url: null };
+}
+function markGatePassed() { S.gateLast = Date.now(); save(); }
+function leaveTo(g) { if (g?.url) location.href = g.url; }
+function gateDone(g, n) {
+  markGatePassed(); gateCurrent = g;
+  $('gateDoneTitle').textContent = n ? 'Liberado! 🔓' : 'Pulou essa 👋';
+  $('gateDoneSub').textContent = n ? `${n} frase${n > 1 ? 's' : ''} a mais no seu inglês hoje (${S.daily.done}/${S.settings.goal}).` : 'Sem problema, a frase volta mais tarde.';
+  $('gateGo').textContent = `Abrir ${g.name} →`; $('gateGo').classList.toggle('hidden', !g.url);
+  $('gateDoneBox').classList.remove('hidden');
+}
+function renderSetup() {
+  const sel = $('setupApp');
+  if (!sel.options.length) sel.innerHTML = Object.entries(GATE_APPS).map(([k, a]) => `<option value="${k}">${esc(a[0])}</option>`).join('');
+  const base = location.origin + location.pathname.replace(/index\.html$/, '');
+  $('setupUrl').textContent = `${base}?gate=${sel.value}`;
+  document.querySelectorAll('.setup-app').forEach(e => e.textContent = GATE_APPS[sel.value][0]);
+}
+
 rollDay();
 show('home');
-if (!Object.keys(S.songs).length) openPick(true);
+const gateParam = new URLSearchParams(location.search).get('gate');
+if (gateParam) {
+  history.replaceState(null, '', location.pathname); // recarregar não dispara o porteiro de novo
+  const g = gateFromKey(gateParam);
+  if (S.songs[S.activeSongId]) startSession(S.settings.gateCount || 1, null, g);
+  else { gateCurrent = g; gateDone(g, 0); toast('Escolha uma música no Refrão para começar 🎵', 4000); }
+} else if (!Object.keys(S.songs).length) openPick(true);
 else maybeFlash();
 
 if ('serviceWorker' in navigator) navigator.serviceWorker.register('sw.js').catch(() => {});
