@@ -1,0 +1,199 @@
+<!doctype html>
+<html lang="pt-br">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#0f0c1a">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="description" content="Aprenda inglês frase por frase com as músicas que você ama.">
+<title>Refrão</title>
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="icon" href="icon.svg" type="image/svg+xml">
+<link rel="apple-touch-icon" href="icon-192.png">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,500;9..144,600;9..144,700;9..144,800&family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+<div id="bgArt"></div><div id="bgShade"></div>
+
+<!-- ===== HOME ===== -->
+<section id="home" class="screen">
+  <header class="topbar">
+    <div class="brand"><span class="logo">♪</span>Refrão</div>
+    <div class="stats">
+      <span class="chip" id="streakChip" title="Dias seguidos estudando">🔥 0</span>
+      <button class="icon-btn" id="btnSettings" aria-label="Ajustes">⚙️</button>
+    </div>
+  </header>
+
+  <div id="hero" class="hero"></div>
+
+  <div class="actions">
+    <button class="btn primary big" id="btnStudy">▶&nbsp; Estudar agora</button>
+    <div class="row">
+      <button class="btn" id="btnLyrics">📜 Letra</button>
+      <button class="btn" id="btnPick">🎵 Trocar música</button>
+    </div>
+  </div>
+
+  <div class="glass panel">
+    <div class="ring" id="goalRing"><span id="goalText">0/20</span></div>
+    <div>
+      <div class="goal-title">Meta de hoje</div>
+      <div class="muted small" id="goalSub">Frases treinadas hoje</div>
+    </div>
+  </div>
+  <div class="mini-stats" id="miniStats"></div>
+
+  <div class="tip glass" id="unlockTip">
+    <b>💡 Frase no desbloqueio:</b> deixe o Refrão aberto antes de apagar a tela.
+    Sempre que você voltar ao celular, uma frase da música estará te esperando.
+  </div>
+</section>
+
+<!-- ===== PICK SONG ===== -->
+<section id="pick" class="screen hidden">
+  <header class="topbar">
+    <button class="icon-btn" id="pickBack" aria-label="Voltar">←</button>
+    <span></span><span></span>
+  </header>
+  <h1 class="greeting" id="pickGreeting"></h1>
+  <form id="searchForm" class="search glass">
+    <input id="searchInput" type="search" placeholder="🔎 Música ou artista…" autocomplete="off" enterkeyhint="search">
+    <button class="btn primary" type="submit">Buscar</button>
+  </form>
+  <div id="searchStatus" class="muted center small" style="margin-top:12px"></div>
+  <div id="results" class="list"></div>
+
+  <div id="library" class="library"></div>
+
+  <details class="manual glass">
+    <summary>Não achou? Cole a letra manualmente</summary>
+    <input id="manTitle" placeholder="Título">
+    <input id="manArtist" placeholder="Artista">
+    <textarea id="manLyrics" rows="8" placeholder="Cole a letra em inglês aqui (uma linha por verso)"></textarea>
+    <button class="btn primary" id="manGo">Usar esta letra</button>
+  </details>
+</section>
+
+<!-- ===== CONFIRM ===== -->
+<section id="confirm" class="screen hidden">
+  <header class="topbar">
+    <button class="icon-btn" id="confirmBack" aria-label="Voltar">←</button>
+    <div class="brand" style="font-size:1.15rem">É essa a música?</div>
+    <span style="width:44px"></span>
+  </header>
+  <div class="confirm-box glass">
+    <div id="confirmCover" class="confirm-cover"></div>
+    <h2 id="confirmTitle"></h2>
+    <div class="muted" id="confirmArtist" style="margin-top:6px"></div>
+    <blockquote id="confirmPreview"></blockquote>
+    <a id="confirmListen" class="link" target="_blank" rel="noopener">▶ Ouvir no YouTube para conferir</a>
+  </div>
+  <div class="row" style="margin-top:16px">
+    <button class="btn" id="confirmNo">✗ Não é</button>
+    <button class="btn primary" id="confirmYes">✓ É essa!</button>
+  </div>
+</section>
+
+<!-- ===== LOADING ===== -->
+<section id="loading" class="screen hidden center-screen">
+  <div class="eq"><i></i><i></i><i></i><i></i><i></i></div>
+  <div id="loadingText">Traduzindo a letra…</div>
+  <div class="bar"><div id="loadingBar"></div></div>
+  <div class="muted small">Separando as frases e preparando seus cartões</div>
+</section>
+
+<!-- ===== LYRICS ===== -->
+<section id="lyrics" class="screen hidden">
+  <header class="topbar">
+    <button class="icon-btn" id="lyricsBack" aria-label="Voltar">←</button>
+    <div class="brand" id="lyricsTitle" style="font-size:1.15rem">Letra</div>
+    <span style="width:44px"></span>
+  </header>
+  <div class="legend">
+    <span class="lv lv0">nova</span><span class="lv lv1">nível 1</span><span class="lv lv2">2</span><span class="lv lv3">3</span><span class="lv lv4">4</span><span class="lv lv5">dominada</span>
+  </div>
+  <div id="lyricsList" class="lyrics-list"></div>
+</section>
+
+<!-- ===== SETTINGS ===== -->
+<section id="settings" class="screen hidden">
+  <header class="topbar">
+    <button class="icon-btn" id="settingsBack" aria-label="Voltar">←</button>
+    <div class="brand" style="font-size:1.15rem">Ajustes</div>
+    <span style="width:44px"></span>
+  </header>
+  <label class="field">Meta diária de frases
+    <select id="setGoal"><option>10</option><option>20</option><option>30</option><option>50</option></select>
+  </label>
+  <label class="field">Frases a cada desbloqueio
+    <select id="setBurst"><option value="1">1 frase</option><option value="3">3 frases</option><option value="5">5 frases</option></select>
+  </label>
+  <label class="field check glass"><input type="checkbox" id="setUnlock"> Mostrar frase ao voltar para o app / desbloquear</label>
+  <label class="field check glass"><input type="checkbox" id="setSpeak"> Falar a frase em inglês automaticamente</label>
+  <label class="field check glass"><input type="checkbox" id="setMix"> Misturar revisões de músicas antigas</label>
+  <div class="row">
+    <button class="btn" id="btnExport">💾 Backup</button>
+    <label class="btn" for="importFile">📂 Importar</label>
+    <input type="file" id="importFile" accept="application/json" hidden>
+  </div>
+  <button class="btn danger" id="btnReset">Apagar tudo</button>
+  <p class="muted small" style="line-height:1.5;margin-top:18px">Seus dados ficam salvos só neste celular. Letras: lrclib.net · Capas: iTunes · Tradução automática: Google Tradutor (corrija tocando em ✎ no cartão).</p>
+</section>
+
+<!-- ===== FLASHCARD (overlay) ===== -->
+<div id="card" class="overlay hidden" aria-live="polite">
+  <div class="art-bg" id="cardArt"></div><div class="art-shade"></div>
+  <div class="card-top">
+    <button class="icon-btn" id="cardClose" aria-label="Fechar">✕</button>
+    <div class="card-meta">
+      <div class="thumb" id="cardThumb"></div>
+      <div class="txt">
+        <div id="cardSong" class="small" style="font-weight:700"></div>
+        <div id="cardNotes" class="notes"></div>
+      </div>
+    </div>
+    <div id="cardCount" class="chip small"></div>
+  </div>
+
+  <div id="cardBody" class="card-body">
+    <div id="cardBanner" class="banner"></div>
+    <div id="cardContext" class="context"></div>
+    <div id="cardEn" class="en"></div>
+    <div class="divider"><div class="tools">
+      <button class="icon-btn" id="btnSpeak" aria-label="Ouvir">🔊</button>
+      <button class="icon-btn" id="btnSlow" aria-label="Ouvir devagar">🐢</button>
+      <button class="icon-btn" id="btnEdit" aria-label="Corrigir tradução">✎</button>
+    </div></div>
+    <div id="cardPt" class="pt"></div>
+    <div id="cardHint" class="muted small center" style="margin-top:10px"></div>
+  </div>
+  <div class="stamp yes" id="stampYes">ENTENDI</div>
+  <div class="stamp no" id="stampNo">AINDA NÃO</div>
+
+  <div id="cardFeedback" class="feedback hidden"></div>
+
+  <div class="swipe-hint">← arraste o cartão →</div>
+  <div class="card-buttons">
+    <button class="btn no" id="btnNo">✗<span>Ainda não</span></button>
+    <button class="btn doubt" id="btnDoubt">?<span>Dúvida</span></button>
+    <button class="btn yes" id="btnYes">✓<span>Entendi</span></button>
+  </div>
+</div>
+
+<!-- word popover -->
+<div id="wordPop" class="wordpop hidden">
+  <div><div class="wp-word" id="wpWord"></div><div class="wp-tr" id="wpTr"></div></div>
+  <button class="icon-btn" id="wpSpeak" aria-label="Ouvir palavra">🔊</button>
+</div>
+
+<div id="toast" class="toast hidden"></div>
+<div id="confetti"></div>
+
+<script src="app.js"></script>
+</body>
+</html>
