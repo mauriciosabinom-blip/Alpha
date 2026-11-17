@@ -197,3 +197,15 @@ blockquote{margin:18px 0 14px;padding:14px 16px;text-align:left;color:var(--text
 .recipe span{position:absolute;left:10px;top:9px;width:20px;height:20px;border-radius:50%;background:var(--accent);color:#fff;font-size:.72rem;font-weight:800;display:inline-grid;place-items:center}
 .recipe code,.steps code{background:rgba(0,0,0,.35);padding:1px 6px;border-radius:6px}
 #gateDoneBox{z-index:30;padding:24px}
+
+/* ---------- oferta + status discreto ---------- */
+.gate-status{margin-top:8px;text-align:center;font-size:.8rem;color:var(--muted);opacity:.85;line-height:1.6}
+.gate-status b{color:var(--text);font-weight:600}
+.linkbtn{background:none;border:0;padding:4px 2px;color:var(--text);text-decoration:underline;text-underline-offset:3px;font-size:inherit;cursor:pointer;opacity:.9}
+.gate-off{position:relative;z-index:2;flex-shrink:0;align-self:center;background:none;border:0;color:var(--muted);font-size:.75rem;opacity:.6;text-decoration:underline;text-underline-offset:3px;padding:6px 10px;margin-bottom:4px;cursor:pointer}
+.sheet-backdrop{position:fixed;inset:0;z-index:35;background:rgba(5,4,10,.55);backdrop-filter:blur(6px);-webkit-backdrop-filter:blur(6px);display:flex;align-items:flex-end;justify-content:center;animation:fadeIn .25s ease}
+.sheet{width:100%;max-width:560px;border-radius:28px 28px 0 0;padding:26px 20px max(22px,env(safe-area-inset-bottom));background:rgba(26,20,42,.94);text-align:center;animation:slideUp .35s cubic-bezier(.2,1,.3,1)}
+.sheet h3{font-family:var(--serif);font-size:1.5rem;margin:8px 0 6px}
+.sheet p{line-height:1.5;margin:0 0 18px}
+.sheet-icon{font-size:2.2rem}
+@keyframes slideUp{from{transform:translateY(100%)}to{transform:none}}

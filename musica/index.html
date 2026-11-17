@@ -30,6 +30,7 @@
   </header>
 
   <div id="hero" class="hero"></div>
+  <div class="gate-status" id="gateStatus"></div>
 
   <div class="actions">
     <button class="btn primary big" id="btnStudy">▶&nbsp; Estudar agora</button>
@@ -219,6 +220,7 @@
 
   <div id="cardFeedback" class="feedback hidden"></div>
 
+  <button class="gate-off hidden" id="gateOff">Não mostrar mais antes do app</button>
   <div class="swipe-hint">← arraste o cartão →</div>
   <div class="card-buttons">
     <button class="btn no" id="btnNo">✗<span>Ainda não</span></button>
@@ -234,7 +236,19 @@
   <h2 id="gateDoneTitle" style="font-family:var(--serif);font-size:2rem;margin:0">Liberado! 🔓</h2>
   <div id="gateDoneSub" class="muted" style="max-width:320px"></div>
   <button class="btn primary big" id="gateGo" style="max-width:340px">Abrir →</button>
+ <button class="btn hidden" id="gateReactivate" style="max-width:340px;width:100%">🔓 Reativar as frases</button>
   <button class="btn" id="gateStay" style="max-width:340px;width:100%">Continuar estudando no Refrão</button>
+</div>
+
+<!-- painel: oferecer frase antes dos apps -->
+<div id="offerSheet" class="sheet-backdrop hidden">
+  <div class="sheet glass">
+    <div class="sheet-icon">📱🎵</div>
+    <h3 id="offerTitle"></h3>
+    <p id="offerText" class="muted"></p>
+    <button class="btn primary big" id="offerYes"></button>
+    <button class="btn" id="offerNo" style="width:100%;margin-top:10px"></button>
+  </div>
 </div>
 
 <!-- word popover -->
