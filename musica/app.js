@@ -24,8 +24,7 @@ const defaults = () => ({
   songs: {}, activeSongId: null,
   daily: { date: '', done: 0, chosen: false },
   streak: { count: 0, last: '' },
-  settings: { goal: 20, burst: 3, unlock: true, speak: false, mix: true, gateCount: 1, gateOn: true },
-  gateApps: [], gateOffered: false,
+  settings: { goal: 20, burst: 3, unlock: true, speak: false, mix: true },
   words: {}
 });
 let S = load();
@@ -135,7 +134,7 @@ function applyTheme(song) {
 }
 
 /* ---------------- telas ---------------- */
-const SCREENS = ['home', 'pick', 'confirm', 'loading', 'lyrics', 'settings', 'setup'];
+const SCREENS = ['home', 'pick', 'confirm', 'loading', 'lyrics', 'settings'];
 let current = 'home';
 function show(id) { SCREENS.forEach(s => $(s).classList.toggle('hidden', s !== id)); current = id; window.scrollTo(0, 0); if (id === 'home') renderHome(); }
 
@@ -175,7 +174,7 @@ function renderHome() {
   $('goalRing').style.setProperty('--p', Math.min(100, d / g * 100));
   $('goalSub').textContent = d >= g ? 'Meta batida! Pode continuar se quiser 💪' : `Faltam ${g - d} frases hoje`;
   const song = S.songs[S.activeSongId];
-  applyTheme(song); if (typeof renderGateStatus === 'function') renderGateStatus();
+  applyTheme(song);
   const hero = $('hero');
   if (!song) {
     const demo = { title: 'Refrão', artist: 'music' };
@@ -338,7 +337,7 @@ async function adoptSong(item) {
   show('home');
   if (failed) toast(`${failed} frase(s) ficaram sem tradução — dá pra escrever tocando em ✎ no cartão.`, 5000);
   else { confetti(['🎵', '🎶', '🎧']); toast('Música pronta! Vamos começar 🎧'); }
-  setTimeout(() => offerGate(() => startSession(Infinity)), 900);
+  setTimeout(() => startSession(Infinity), 900);
 }
 
 /* ---------------- escolha da próxima frase ---------------- */
@@ -379,24 +378,21 @@ function nextPhrase() {
 }
 
 /* ---------------- sessão de cartões ---------------- */
-let session = null; // { left, done, cur:[song,phrase], revealed, helped, gate }
-function startSession(count, forced, gate) {
+let session = null; // { left, done, cur:[song,phrase], revealed, helped }
+function startSession(count, forced) {
   if (!S.songs[S.activeSongId] && !forced) return;
   hideWordPop();
-  session = { left: count, done: 0, cur: null, revealed: false, helped: false, gate: gate || null };
+  session = { left: count, done: 0, cur: null, revealed: false, helped: false };
   $('card').classList.remove('hidden');
   nextCard(forced);
 }
 function endSession() {
-  const g = session?.gate, n = session?.done || 0;
   $('card').classList.add('hidden'); session = null; hideWordPop(); speechSynthesis?.cancel();
-  if (g) return gateDone(g, n);
   if (current === 'home') renderHome(); else if (current === 'lyrics') renderLyrics();
 }
 function nextCard(forced) {
   if (session.left <= 0) {
     const n = session.done;
-    if (session.gate) return endSession();
     endSession(); toast(n ? `Pronto! ${n} frase${n > 1 ? 's' : ''} treinada${n > 1 ? 's' : ''} ✓` : 'Pronto!'); return;
   }
   const pair = forced || nextPhrase();
@@ -425,14 +421,11 @@ function renderCard() {
   $('cardNotes').innerHTML = Array.from({ length: MAX_LEVEL }, (_, i) => `<i class="${i < lvl ? 'on' : ''}">♪</i>`).join('');
   const art = bgStyle(song);
   if ($('cardArt').dataset.song !== song.id) { $('cardArt').style.cssText = art; $('cardThumb').style.cssText = art; $('cardArt').dataset.song = song.id; }
-  $('gateOff').classList.toggle('hidden', !session.gate);
-  if (session.gate) $('gateOff').textContent = session.gate.all ? 'Não mostrar mais antes dos apps' : `Não mostrar mais antes do ${session.gate.name}`;
-  $('cardCount').textContent = session.gate ? `🔓 ${session.done + 1}/${session.done + session.left}` : isFinite(session.left) ? `${session.done + 1}/${session.done + session.left}` : `${S.daily.done}/${S.settings.goal}`;
+  $('cardCount').textContent = isFinite(session.left) ? `${session.done + 1}/${session.done + session.left}` : `${S.daily.done}/${S.settings.goal}`;
   $('cardCount').classList.toggle('hidden', false);
 
   let banner = '';
-  if (session.gate && session.done === 0) banner = `Antes do ${session.gate.name}: uma frase rapidinha 🎵`;
-  else if (!p.seen) banner = p.count > 1 ? `⭐ Frase nova · aparece ${p.count}x na música` : '✨ Frase nova';
+  if (!p.seen) banner = p.count > 1 ? `⭐ Frase nova · aparece ${p.count}x na música` : '✨ Frase nova';
   else if (lvl === MAX_LEVEL) banner = '🏆 Você dominou essa! Ainda lembra?';
   else if (lvl === 4) banner = '🧠 Sem tradução: você sabe o que significa?';
   else if (lvl >= 1) banner = `Nível ${lvl} · complete mentalmente as palavras escondidas`;
@@ -510,7 +503,6 @@ function answer(knew) {
   if (knew && p.level === MAX_LEVEL && before < MAX_LEVEL && song.phrases.every(x => x.level === MAX_LEVEL)) {
     setTimeout(() => { confetti(['🏆', '🎤', '🎉', '⭐']); toast(`Você dominou "${song.title}" inteira! Que tal escolher a próxima? 🎤`, 5000); }, 500);
   }
-  if (session.gate && session.left <= 0) { const g = session.gate; markGatePassed(); leaveTo(g); } // dentro do toque: o Safari permite abrir o app
   setTimeout(() => nextCard(), 950);
 }
 function reveal() {
@@ -568,20 +560,7 @@ function renderLyrics() {
 $('btnStudy').onclick = () => startSession(Infinity);
 $('btnPick').onclick = () => openPick(false);
 $('btnLyrics').onclick = () => { renderLyrics(); show('lyrics'); };
-$('btnSetup').onclick = () => { renderSetup(); show('setup'); };
-$('setupBack').onclick = () => show('settings');
-$('setupApp').onchange = renderSetup;
-$('setupCopy').onclick = async () => {
-  addGateApp($('setupApp').value); S.settings.gateOn = true; save();
-  const t = $('setupUrl').textContent;
-  try { await navigator.clipboard.writeText(t); toast('Link copiado ✓'); }
-  catch (e) { const r = document.createRange(); r.selectNodeContents($('setupUrl')); getSelection().removeAllRanges(); getSelection().addRange(r); toast('Selecionei o link — toque em Copiar'); }
-};
-$('setGate').onchange = e => { S.settings.gateCount = +e.target.value; save(); };
-$('gateGo').onclick = () => gateCurrent && leaveTo(gateCurrent);
-$('gateStay').onclick = () => { $('gateDoneBox').classList.add('hidden'); gateCurrent = null; show('home'); };
 $('btnSettings').onclick = () => {
-  $('setGate').value = S.settings.gateCount || 1;
   $('setGoal').value = S.settings.goal; $('setBurst').value = S.settings.burst;
   $('setUnlock').checked = S.settings.unlock; $('setSpeak').checked = S.settings.speak; $('setMix').checked = S.settings.mix;
   show('settings');
@@ -600,7 +579,6 @@ $('library').onclick = e => {
   const b = e.target.closest('[data-lib]'); if (!b) return;
   S.activeSongId = b.dataset.lib; S.daily.chosen = true; save(); show('home');
   toast(`Estudando: ${S.songs[S.activeSongId].title}`);
-  offerGate();
 };
 $('manGo').onclick = () => {
   const lyrics = $('manLyrics').value.trim();
@@ -630,7 +608,7 @@ $('importFile').onchange = async e => {
 $('btnReset').onclick = () => { if (confirm('Apagar todas as músicas e o progresso?')) { S = defaults(); save(); show('home'); } };
 
 // cartão
-$('cardClose').onclick = () => { const g = session?.gate; endSession(); if (g) leaveTo(g); };
+$('cardClose').onclick = endSession;
 $('btnYes').onclick = () => answer(true);
 $('btnNo').onclick = () => answer(false);
 $('btnDoubt').onclick = reveal;
@@ -675,7 +653,7 @@ function maybeFlash() {
   rollDay();
   if (!S.daily.chosen && current !== 'confirm' && current !== 'loading') { if (!session) openPick(true); return; }
   if (!S.settings.unlock || session || !S.songs[S.activeSongId]) return;
-  if (['pick', 'confirm', 'loading', 'settings', 'setup'].includes(current) || gateCurrent) return;
+  if (['pick', 'confirm', 'loading', 'settings'].includes(current)) return;
   startSession(S.settings.burst);
 }
 document.addEventListener('visibilitychange', () => {
@@ -683,110 +661,10 @@ document.addEventListener('visibilitychange', () => {
   if (Date.now() - hiddenAt >= UNLOCK_GAP_MS) maybeFlash();
 });
 
-/* ---------------- modo porteiro (Atalhos do iPhone) ----------------
- * Uma automação do app Atalhos ("quando o Instagram for aberto") abre
- *   .../musica/?gate=instagram
- * O Refrão mostra a(s) frase(s) e depois devolve a pessoa ao app.        */
-const GATE_APPS = {
-  todos: ['Todos os apps', null],
-  instagram: ['Instagram', 'instagram://'], whatsapp: ['WhatsApp', 'whatsapp://'], tiktok: ['TikTok', 'tiktok://'],
-  youtube: ['YouTube', 'youtube://'], facebook: ['Facebook', 'fb://'], x: ['X (Twitter)', 'twitter://'],
-  spotify: ['Spotify', 'spotify://'], netflix: ['Netflix', 'nflx://'], telegram: ['Telegram', 'tg://'],
-  kwai: ['Kwai', 'kwai://'], linkedin: ['LinkedIn', 'linkedin://']
-};
-let gateCurrent = null;
-function gateFromKey(key) {
-  const k = (key || '').toLowerCase(); const a = GATE_APPS[k];
-  if (k === 'todos' || !a) return { key: k, name: 'seu app', url: null, all: true };
-  return { key: k, name: a[0], url: a[1] };
-}
-function markGatePassed() { S.gateLast = Date.now(); save(); }
-function leaveTo(g) { if (g?.url) location.href = g.url; }
-function gateDone(g, n) {
-  markGatePassed(); gateCurrent = g; $('gateReactivate').classList.add('hidden');
-  $('gateDoneTitle').textContent = n ? 'Liberado! 🔓' : 'Pulou essa 👋';
-  $('gateDoneSub').textContent = n ? `${n} frase${n > 1 ? 's' : ''} a mais no seu inglês hoje (${S.daily.done}/${S.settings.goal}).` : 'Sem problema, a frase volta mais tarde.';
-  $('gateGo').textContent = `Abrir ${g.name} →`; $('gateGo').classList.toggle('hidden', !g.url);
-  $('gateBackHint').classList.toggle('hidden', !!g.url);
-  $('gateDoneBox').classList.remove('hidden');
-}
-function addGateApp(k) { if (GATE_APPS[k] && !S.gateApps.includes(k)) { S.gateApps.push(k); save(); } }
-const gateNames = () => S.gateApps.includes('todos') ? 'todos os apps' : (S.gateApps.map(k => GATE_APPS[k]?.[0]).filter(Boolean).join(', ') || 'seus apps');
-// pausado: a automação do iPhone continua existindo, mas o Refrão devolve na hora
-function gatePaused(g) {
-  gateCurrent = g;
-  $('gateDoneTitle').textContent = 'Refrão pausado ⏸';
-  $('gateDoneSub').textContent = `As frases antes ${g.all ? 'dos apps' : 'do ' + g.name} estão desativadas. Para não abrir mais nada, apague a automação no app Atalhos.`;
-  $('gateGo').textContent = `Abrir ${g.name} →`; $('gateGo').classList.toggle('hidden', !g.url);
-  $('gateReactivate').classList.remove('hidden');
-  $('gateBackHint').classList.toggle('hidden', !!g.url);
-  $('gateDoneBox').classList.remove('hidden');
-}
-function setGateOn(on) { S.settings.gateOn = on; save(); renderGateStatus(); }
-function renderGateStatus() {
-  const el = $('gateStatus'); if (!el) return;
-  if (!S.gateApps.length) el.innerHTML = `<button class="btn gate-cta" data-gs="setup">📱 Ver uma frase antes de todos os apps <span>Ativar →</span></button>`;
-  else if (S.settings.gateOn !== false) el.innerHTML = `🔓 Frase antes de ${esc(gateNames())}: <b>ativada</b> · <button class="linkbtn" data-gs="off">Desativar</button>`;
-  else el.innerHTML = `⏸ Frase antes de ${esc(gateNames())}: <b>desativada</b> · <button class="linkbtn" data-gs="on">Ativar</button>`;
-}
-// painel que oferece a opção (1ª abertura e a cada troca de música)
-let offerAfter = null;
-function offerGate(after) {
-  offerAfter = after || null;
-  const on = S.gateApps.length && S.settings.gateOn !== false;
-  $('offerTitle').textContent = on ? 'Sua música vai junto 🎵' : 'Frase antes dos seus apps?';
-  $('offerText').innerHTML = on
-    ? `As frases desta música vão aparecer antes de <b>${esc(gateNames())}</b>.`
-    : 'Toda vez que você abrir o Instagram, WhatsApp ou outro app, o Refrão mostra uma frase rapidinha antes. É o jeito mais fácil de estudar sem lembrar de estudar.';
-  $('offerYes').textContent = on ? '✓ Ótimo' : '📱 Sim, configurar';
-  $('offerNo').textContent = on ? 'Desativar' : 'Agora não';
-  $('offerSheet').dataset.mode = on ? 'on' : 'off';
-  $('offerSheet').classList.remove('hidden');
-  S.gateOffered = true; save();
-}
-function closeOffer() { $('offerSheet').classList.add('hidden'); const f = offerAfter; offerAfter = null; f && f(); }
-$('offerYes').onclick = () => {
-  if ($('offerSheet').dataset.mode === 'on') return closeOffer();
-  offerAfter = null; $('offerSheet').classList.add('hidden'); renderSetup(); show('setup');
-};
-$('offerNo').onclick = () => { if ($('offerSheet').dataset.mode === 'on') { setGateOn(false); toast('Frases antes dos apps desativadas ⏸'); } closeOffer(); };
-$('offerSheet').onclick = e => { if (e.target === $('offerSheet')) closeOffer(); };
-$('gateStatus').onclick = e => {
-  const b = e.target.closest('[data-gs]'); if (!b) return;
-  if (b.dataset.gs === 'setup') { renderSetup(); show('setup'); }
-  else { setGateOn(b.dataset.gs === 'on'); toast(b.dataset.gs === 'on' ? 'Ativado 🔓' : 'Desativado ⏸ — o Refrão devolve você direto ao app'); }
-};
-$('gateOff').onclick = () => {
-  const g = session?.gate; setGateOn(false);
-  $('card').classList.add('hidden'); session = null; markGatePassed();
-  if (g) { gatePaused(g); leaveTo(g); }
-};
-$('gateReactivate').onclick = () => { setGateOn(true); $('gateReactivate').classList.add('hidden'); toast('Ativado de novo 🔓'); };
-function renderSetup() {
-  const sel = $('setupApp');
-  if (!sel.options.length) sel.innerHTML = Object.entries(GATE_APPS).map(([k, a]) => `<option value="${k}">${esc(a[0])}</option>`).join('');
-  const base = location.origin + location.pathname.replace(/index\.html$/, '');
-  $('setupUrl').textContent = `${base}?gate=${sel.value}`;
-  const all = sel.value === 'todos';
-  $('step2').innerHTML = all
-    ? 'Toque em <b>App</b> → <b>Escolher</b> → marque <b>todos os apps</b> da lista, <b>MENOS o Safari e o Atalhos</b> → deixe <b>"Está Aberto"</b> marcado.'
-    : `Toque em <b>App</b> → <b>Escolher</b> → marque <b>${esc(GATE_APPS[sel.value][0])}</b> → deixe <b>"Está Aberto"</b> marcado.`;
-  $('stepLast').innerHTML = `Toque em <b>OK</b>. Pronto! Abra ${all ? 'qualquer app' : 'o <b>' + esc(GATE_APPS[sel.value][0]) + '</b>'} para testar.`;
-  $('allWarn').classList.toggle('hidden', !all);
-}
-
+/* ---------------- início ---------------- */
 rollDay();
 show('home');
-const gateParam = new URLSearchParams(location.search).get('gate');
-if (gateParam) {
-  history.replaceState(null, '', location.pathname); // recarregar não dispara o porteiro de novo
-  const g = gateFromKey(gateParam);
-  addGateApp(g.key);
-  if (S.settings.gateOn === false) gatePaused(g);
-  else if (S.songs[S.activeSongId]) startSession(S.settings.gateCount || 1, null, g);
-  else { gateCurrent = g; gateDone(g, 0); toast('Escolha uma música no Refrão para começar 🎵', 4000); }
-} else if (!Object.keys(S.songs).length) { openPick(true); offerGate(); }
-else if (!S.gateOffered) offerGate(() => maybeFlash()); // quem já usava o app também recebe o convite
+if (!Object.keys(S.songs).length) openPick(true);
 else maybeFlash();
 
 if ('serviceWorker' in navigator) navigator.serviceWorker.register('sw.js').catch(() => {});
