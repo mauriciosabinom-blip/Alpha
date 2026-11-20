@@ -189,3 +189,6 @@ blockquote{margin:18px 0 14px;padding:14px 16px;text-align:left;color:var(--text
 .seg{display:grid;grid-template-columns:1fr 1fr;gap:4px;margin:16px 0 0;padding:4px;border-radius:18px;background:var(--glass);border:1px solid var(--line);backdrop-filter:blur(14px);-webkit-backdrop-filter:blur(14px)}
 .seg button{border:0;background:transparent;border-radius:14px;min-height:44px;padding:8px 6px;font-weight:650;font-size:.9rem;color:var(--muted);cursor:pointer;transition:background .2s,color .2s}
 .seg button[aria-checked="true"]{background:linear-gradient(135deg,color-mix(in srgb,var(--accent) 85%,transparent),color-mix(in srgb,var(--accent2) 85%,transparent));color:#fff;box-shadow:0 6px 18px -8px var(--accent)}
+
+.seg.seg3{grid-template-columns:repeat(3,1fr)}
+.seg.seg3 button{font-size:.82rem;padding:8px 4px;line-height:1.2}

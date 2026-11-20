@@ -16,7 +16,10 @@ const MIN = 60e3, HOUR = 60 * MIN, DAY = 24 * HOUR;
 const INTERVALS = [0, 5 * MIN, 30 * MIN, 3 * HOUR, 12 * HOUR, 3 * DAY];
 const HIDE_RATIO = [0, 0.3, 0.55, 0.8, 1, 1];
 const MAX_LEVEL = 5;
-const MAX_LEARNING = 12;          // máx. de frases "em aprendizado" ao mesmo tempo
+const MAX_LEARNING = 12;
+// Modos de estudo (o primeiro é o padrão)
+const MODES = [['seq', '🎵 Na ordem'], ['lyric', '📖 Decorar letra'], ['random', '🔀 Aleatória']];
+const modeOf = song => (MODES.some(m => m[0] === song?.mode) ? song.mode : 'seq');          // máx. de frases "em aprendizado" ao mesmo tempo
 const UNLOCK_GAP_MS = 4000;       // tempo mínimo fora do app para disparar o cartão
 
 /* ---------------- estado ---------------- */
@@ -188,9 +191,8 @@ function renderHome() {
         <div class="sleeve" style="${bgStyle(song)}"></div></div>
       <h2>${esc(song.title)}</h2><div class="artist">${esc(song.artist)}</div>
       <div class="progress-line">${levelBar(song)}<span class="pct">${st.pct}%</span></div>
-      <div class="seg" role="radiogroup" aria-label="Ordem das frases">
-        <button role="radio" data-mode="random" aria-checked="${song.mode !== 'seq'}">🔀 Aleatória</button>
-        <button role="radio" data-mode="seq" aria-checked="${song.mode === 'seq'}">🎵 Na ordem da música</button>
+      <div class="seg seg3" role="radiogroup" aria-label="Como as frases aparecem">
+        ${MODES.map(([m, label]) => `<button role="radio" data-mode="${m}" aria-checked="${modeOf(song) === m}">${label}</button>`).join('')}
       </div>`;
     const learning = st.c[1] + st.c[2] + st.c[3] + st.c[4];
     const fresh = song.phrases.filter(p => !p.seen).length;
@@ -293,8 +295,8 @@ function buildPhrases(text) {
   const map = new Map();
   out.forEach((en, order) => {
     const k = norm(en);
-    if (map.has(k)) map.get(k).count++;
-    else map.set(k, { id: uid(), en, pt: '', count: 1, order, level: 0, seen: false, due: 0, right: 0, wrong: 0, doubts: 0, last: 0, ivl: 0 });
+    if (map.has(k)) { const p = map.get(k); p.count++; p.at.push(order); }
+    else map.set(k, { id: uid(), en, pt: '', count: 1, order, at: [order], level: 0, seen: false, due: 0, right: 0, wrong: 0, doubts: 0, last: 0, ivl: 0 });
   });
   return [...map.values()];
 }
@@ -349,7 +351,7 @@ let recent = [];
 function pool() {
   const act = S.songs[S.activeSongId];
   const list = act ? act.phrases.map(p => [act, p]) : [];
-  if (S.settings.mix && act?.mode !== 'seq') for (const s of Object.values(S.songs)) if (s !== act) s.phrases.forEach(p => { if (p.seen) list.push([s, p]); });
+  if (S.settings.mix && act && modeOf(act) === 'random') for (const s of Object.values(S.songs)) if (s !== act) s.phrases.forEach(p => { if (p.seen) list.push([s, p]); });
   return list;
 }
 // Modo "na ordem da música": segue a letra verso a verso, continuando de onde parou.
@@ -363,9 +365,23 @@ function seqNext(song) {
   if (!next) { if (cur >= 0) toast('🔁 Fim da letra — recomeçando do início'); return [song, list[0]]; }
   return [song, next];
 }
+// Modo "decorar a letra": a letra inteira, verso a verso, como é cantada
+// (refrão repete toda vez), sem pular nada — para gravar a música.
+function sungOrder(song) {
+  const byId = Object.fromEntries(song.phrases.map(p => [p.id, p]));
+  return song.phrases.flatMap(p => (p.at || [p.order]).map(o => [o, p.id])).sort((a, b) => a[0] - b[0]).map(x => byId[x[1]]);
+}
+function lyricNext(song) {
+  const sung = sungOrder(song);
+  let pos = (song.lyricPos ?? -1) + 1;
+  if (pos >= sung.length) { pos = 0; toast('🔁 Fim da letra — de novo do começo!'); }
+  song.lyricPos = pos;
+  return [song, sung[pos]];
+}
 function nextPhrase() {
   const now = Date.now(), act = S.songs[S.activeSongId];
-  if (act?.mode === 'seq') return seqNext(act);
+  if (act && modeOf(act) === 'seq') return seqNext(act);
+  if (act && modeOf(act) === 'lyric') return lyricNext(act);
   const all = pool();
   const fresh = all.filter(([, p]) => !recent.includes(p.id));
   const src = fresh.length ? fresh : all;
@@ -414,7 +430,10 @@ function nextCard(forced) {
   const pair = forced || nextPhrase();
   if (!pair) { endSession(); toast('Nenhuma frase para estudar ainda.'); return; }
   session.cur = pair; session.revealed = false; session.helped = false;
-  if (pair[0].mode === 'seq') { pair[0].cursor = pair[1].order; save(); }
+  const md = modeOf(pair[0]);
+  if (md === 'seq') pair[0].cursor = pair[1].order;
+  if (md === 'lyric' && forced) { const i = sungOrder(pair[0]).indexOf(pair[1]); if (i >= 0) pair[0].lyricPos = i; }
+  save();
   recent = [pair[1].id, ...recent.filter(x => x !== pair[1].id)].slice(0, 3);
   renderCard();
   if (S.settings.speak) speak(pair[1].en);
@@ -438,7 +457,8 @@ function renderCard() {
   $('cardNotes').innerHTML = Array.from({ length: MAX_LEVEL }, (_, i) => `<i class="${i < lvl ? 'on' : ''}">♪</i>`).join('');
   const art = bgStyle(song);
   if ($('cardArt').dataset.song !== song.id) { $('cardArt').style.cssText = art; $('cardThumb').style.cssText = art; $('cardArt').dataset.song = song.id; }
-  $('cardCount').textContent = isFinite(session.left) ? `${session.done + 1}/${session.done + session.left}` : `${S.daily.done}/${S.settings.goal}`;
+  const md = modeOf(song);
+  $('cardCount').textContent = md === 'lyric' ? `📖 ${(song.lyricPos ?? 0) + 1}/${sungOrder(song).length}` : isFinite(session.left) ? `${session.done + 1}/${session.done + session.left}` : `${S.daily.done}/${S.settings.goal}`;
   $('cardCount').classList.toggle('hidden', false);
 
   let banner = '';
@@ -577,12 +597,11 @@ function renderLyrics() {
 $('btnStudy').onclick = () => startSession(Infinity);
 $('hero').onclick = e => {
   const b = e.target.closest('.seg [data-mode]'); if (!b) return;
-  const song = S.songs[S.activeSongId]; if (!song || song.mode === b.dataset.mode || (!song.mode && b.dataset.mode === 'random')) return;
+  const song = S.songs[S.activeSongId]; if (!song || modeOf(song) === b.dataset.mode) return;
   song.mode = b.dataset.mode; save(); renderHome();
-  if (song.mode === 'seq') {
-    const pos = song.cursor == null ? 'do começo da letra' : 'de onde você parou';
-    toast(`🎵 Frases na ordem da música, ${pos}`);
-  } else toast('🔀 Frases em ordem aleatória');
+  if (song.mode === 'seq') toast(`🎵 Na ordem da música, ${song.cursor == null ? 'do começo' : 'de onde você parou'} · frases dominadas saem da fila`);
+  else if (song.mode === 'lyric') toast(`📖 Decorar a letra: a música inteira, verso a verso${song.lyricPos == null ? '' : ', de onde você parou'}`);
+  else toast('🔀 Frases em ordem aleatória');
 };
 $('btnPick').onclick = () => openPick(false);
 $('btnLyrics').onclick = () => { renderLyrics(); show('lyrics'); };
