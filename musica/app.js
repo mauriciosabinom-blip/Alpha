@@ -187,7 +187,11 @@ function renderHome() {
         <div class="vinyl"><div class="label" style="${bgStyle(song)}"></div></div>
         <div class="sleeve" style="${bgStyle(song)}"></div></div>
       <h2>${esc(song.title)}</h2><div class="artist">${esc(song.artist)}</div>
-      <div class="progress-line">${levelBar(song)}<span class="pct">${st.pct}%</span></div>`;
+      <div class="progress-line">${levelBar(song)}<span class="pct">${st.pct}%</span></div>
+      <div class="seg" role="radiogroup" aria-label="Ordem das frases">
+        <button role="radio" data-mode="random" aria-checked="${song.mode !== 'seq'}">🔀 Aleatória</button>
+        <button role="radio" data-mode="seq" aria-checked="${song.mode === 'seq'}">🎵 Na ordem da música</button>
+      </div>`;
     const learning = st.c[1] + st.c[2] + st.c[3] + st.c[4];
     const fresh = song.phrases.filter(p => !p.seen).length;
     $('miniStats').innerHTML = `<div class="glass"><b>${st.mastered}</b><span>🏆 dominadas</span></div>
@@ -345,11 +349,23 @@ let recent = [];
 function pool() {
   const act = S.songs[S.activeSongId];
   const list = act ? act.phrases.map(p => [act, p]) : [];
-  if (S.settings.mix) for (const s of Object.values(S.songs)) if (s !== act) s.phrases.forEach(p => { if (p.seen) list.push([s, p]); });
+  if (S.settings.mix && act?.mode !== 'seq') for (const s of Object.values(S.songs)) if (s !== act) s.phrases.forEach(p => { if (p.seen) list.push([s, p]); });
   return list;
+}
+// Modo "na ordem da música": segue a letra verso a verso, continuando de onde parou.
+// Pula as frases já dominadas (nível 5); se todas estiverem dominadas, passa por todas.
+function seqNext(song) {
+  const ordered = [...song.phrases].sort((a, b) => a.order - b.order);
+  const pending = ordered.filter(p => !(p.seen && p.level === MAX_LEVEL));
+  const list = pending.length ? pending : ordered;
+  const cur = song.cursor ?? -1;
+  const next = list.find(p => p.order > cur);
+  if (!next) { if (cur >= 0) toast('🔁 Fim da letra — recomeçando do início'); return [song, list[0]]; }
+  return [song, next];
 }
 function nextPhrase() {
   const now = Date.now(), act = S.songs[S.activeSongId];
+  if (act?.mode === 'seq') return seqNext(act);
   const all = pool();
   const fresh = all.filter(([, p]) => !recent.includes(p.id));
   const src = fresh.length ? fresh : all;
@@ -398,6 +414,7 @@ function nextCard(forced) {
   const pair = forced || nextPhrase();
   if (!pair) { endSession(); toast('Nenhuma frase para estudar ainda.'); return; }
   session.cur = pair; session.revealed = false; session.helped = false;
+  if (pair[0].mode === 'seq') { pair[0].cursor = pair[1].order; save(); }
   recent = [pair[1].id, ...recent.filter(x => x !== pair[1].id)].slice(0, 3);
   renderCard();
   if (S.settings.speak) speak(pair[1].en);
@@ -558,6 +575,15 @@ function renderLyrics() {
 
 /* ---------------- eventos ---------------- */
 $('btnStudy').onclick = () => startSession(Infinity);
+$('hero').onclick = e => {
+  const b = e.target.closest('.seg [data-mode]'); if (!b) return;
+  const song = S.songs[S.activeSongId]; if (!song || song.mode === b.dataset.mode || (!song.mode && b.dataset.mode === 'random')) return;
+  song.mode = b.dataset.mode; save(); renderHome();
+  if (song.mode === 'seq') {
+    const pos = song.cursor == null ? 'do começo da letra' : 'de onde você parou';
+    toast(`🎵 Frases na ordem da música, ${pos}`);
+  } else toast('🔀 Frases em ordem aleatória');
+};
 $('btnPick').onclick = () => openPick(false);
 $('btnLyrics').onclick = () => { renderLyrics(); show('lyrics'); };
 $('btnSettings').onclick = () => {
