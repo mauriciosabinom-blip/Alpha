@@ -14,10 +14,36 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,500;9..144,600;9..144,700;9..144,800&family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="style.css?v=10">
+<link rel="stylesheet" href="style.css?v=11">
 </head>
 <body>
 <div id="bgArt"></div><div id="bgShade"></div>
+
+<!-- ===== LOGIN ===== -->
+<section id="login" class="screen hidden">
+  <div class="login-hero">
+    <div class="login-logo">♪</div>
+    <div class="brand" style="justify-content:center;font-size:2rem">Refrão</div>
+    <div class="muted">Inglês com as músicas que você ama</div>
+  </div>
+  <div class="seg" id="loginTabs" role="radiogroup">
+    <button type="button" role="radio" data-auth="signup" aria-checked="true">Criar conta</button>
+    <button type="button" role="radio" data-auth="login" aria-checked="false">Já tenho conta</button>
+  </div>
+  <form id="loginForm" class="glass login-card" autocomplete="on">
+    <h2 id="loginTitle"></h2>
+    <p id="loginSub" class="muted"></p>
+    <label class="field"><span id="loginNameLabel">Seu primeiro nome</span>
+      <input id="loginName" class="input" autocomplete="username" autocapitalize="words" spellcheck="false" maxlength="30" required>
+    </label>
+    <div id="loginHandle" class="handle"></div>
+    <label class="field">Senha
+      <div class="pass-wrap"><input id="loginPass" class="input" type="password" required><button type="button" class="icon-btn" id="loginEye" aria-label="Mostrar senha">👁</button></div>
+    </label>
+    <div id="loginErr" class="login-err" role="alert"></div>
+    <button class="btn primary big" id="loginGo" type="submit">Entrar</button>
+  </form>
+</section>
 
 <!-- ===== HOME ===== -->
 <section id="home" class="screen">
@@ -141,6 +167,10 @@
     <label class="btn" for="importFile">📂 Importar</label>
     <input type="file" id="importFile" accept="application/json" hidden>
   </div>
+  <div class="glass account hidden" id="accountBox">
+    <div><div class="muted small">Conectado como</div><b id="accountName"></b></div>
+    <button class="btn" id="btnLogout">Sair</button>
+  </div>
   <button class="btn danger" id="btnReset">Apagar tudo</button>
   <p class="muted small" style="line-height:1.5;margin-top:18px">Seus dados ficam salvos só neste celular. Letras: lrclib.net · Capas: iTunes · Tradução automática: Google Tradutor (corrija tocando em ✎ no cartão).</p>
 </section>
@@ -198,6 +228,7 @@
 <div id="toast" class="toast hidden"></div>
 <div id="confetti"></div>
 
-<script src="app.js?v=10"></script>
+<script src="config.js?v=11"></script>
+<script src="app.js?v=11"></script>
 </body>
 </html>

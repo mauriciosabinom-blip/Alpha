@@ -10,7 +10,7 @@
  */
 'use strict';
 
-const STORE_KEY = 'refrao.v1';
+let STORE_KEY = 'refrao.v1';   // por usuário quando o login está ativo: refrao.v1:<usuario>
 const MIN = 60e3, HOUR = 60 * MIN, DAY = 24 * HOUR;
 // Quanto tempo esperar até mostrar de novo, por nível alcançado
 const INTERVALS = [0, 5 * MIN, 30 * MIN, 3 * HOUR, 12 * HOUR, 3 * DAY];
@@ -19,7 +19,7 @@ const MAX_LEVEL = 5;
 const MAX_LEARNING = 12;
 // Modos de estudo (o primeiro é o padrão)
 const MODES = [['seq', '🎵 Na ordem'], ['lyric', '📖 Decorar letra'], ['random', '🔀 Aleatória']];
-const modeOf = song => (MODES.some(m => m[0] === song?.mode) ? song.mode : 'seq');          // máx. de frases "em aprendizado" ao mesmo tempo
+const modeOf = song => (MODES.some(m => m[0] === song?.mode) ? song.mode : 'seq');
 const UNLOCK_GAP_MS = 4000;       // tempo mínimo fora do app para disparar o cartão
 
 /* ---------------- estado ---------------- */
@@ -30,7 +30,7 @@ const defaults = () => ({
   settings: { goal: 20, burst: 3, unlock: true, speak: false, mix: true },
   words: {}
 });
-let S = load();
+let S = defaults();   // carregado no boot(), depois do login
 function load() {
   try {
     const s = JSON.parse(localStorage.getItem(STORE_KEY));
@@ -137,7 +137,7 @@ function applyTheme(song) {
 }
 
 /* ---------------- telas ---------------- */
-const SCREENS = ['home', 'pick', 'confirm', 'loading', 'lyrics', 'settings'];
+const SCREENS = ['home', 'pick', 'confirm', 'loading', 'lyrics', 'settings', 'login'];
 let current = 'home';
 function show(id) { SCREENS.forEach(s => $(s).classList.toggle('hidden', s !== id)); current = id; window.scrollTo(0, 0); if (id === 'home') renderHome(); }
 
@@ -717,6 +717,7 @@ document.addEventListener('pointerdown', e => { if (!e.target.closest('#wordPop,
 /* ---------------- gatilho de desbloqueio / retorno ---------------- */
 let hiddenAt = 0;
 function maybeFlash() {
+  if (!booted) return;
   rollDay();
   if (!S.daily.chosen && current !== 'confirm' && current !== 'loading') { if (!session) openPick(true); return; }
   if (!S.settings.unlock || session || !S.songs[S.activeSongId]) return;
@@ -729,9 +730,104 @@ document.addEventListener('visibilitychange', () => {
 });
 
 /* ---------------- início ---------------- */
-rollDay();
-show('home');
-if (!Object.keys(S.songs).length) openPick(true);
-else maybeFlash();
+/* ---------------- login (Supabase) ----------------
+ * Usuário = primeiro nome, único (vira um "@usuario" sem acentos/espaços).
+ * Por baixo, o Supabase recebe usuario@usuarios.refrao.app — nenhum e-mail é enviado.
+ * Cada usuário tem seu próprio progresso guardado no aparelho.                    */
+const CFG = window.REFRAO_CONFIG || {};
+const AUTH_ON = !!(CFG.supabaseUrl && CFG.supabaseKey);
+const AUTH_KEY = 'refrao.auth';
+let booted = false, authMode = 'signup';
+const toHandle = name => name.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().replace(/[^a-z0-9]/g, '');
+const handleEmail = h => `${h}@usuarios.refrao.app`;
+function getSession() { try { return JSON.parse(localStorage.getItem(AUTH_KEY)); } catch (e) { return null; } }
+async function authCall(path, body) {
+  const r = await fetch(CFG.supabaseUrl.replace(/\/$/, '') + '/auth/v1/' + path, {
+    method: 'POST', headers: { 'Content-Type': 'application/json', apikey: CFG.supabaseKey, Authorization: 'Bearer ' + CFG.supabaseKey },
+    body: JSON.stringify(body)
+  });
+  const j = await r.json().catch(() => ({}));
+  if (!r.ok) throw Object.assign(new Error(j.msg || j.error_description || j.message || 'Erro ' + r.status), { code: j.error_code || j.code || j.error, status: r.status });
+  return j;
+}
+function startUser(sess) {
+  localStorage.setItem(AUTH_KEY, JSON.stringify(sess));
+  STORE_KEY = 'refrao.v1:' + sess.handle;
+  // o primeiro usuário a entrar neste aparelho herda o progresso de antes do login
+  if (!localStorage.getItem(STORE_KEY) && localStorage.getItem('refrao.v1') && !localStorage.getItem('refrao.legacyClaimed')) {
+    localStorage.setItem(STORE_KEY, localStorage.getItem('refrao.v1'));
+    localStorage.setItem('refrao.legacyClaimed', sess.handle);
+  }
+}
+function renderLogin() {
+  const up = authMode === 'signup';
+  document.querySelectorAll('#loginTabs button').forEach(b => b.setAttribute('aria-checked', b.dataset.auth === authMode));
+  $('loginTitle').textContent = up ? 'Crie seu acesso' : 'Bem-vindo de volta';
+  $('loginSub').textContent = up ? 'Só o seu primeiro nome e uma senha. Leva 10 segundos.' : 'Entre com seu usuário e senha.';
+  $('loginNameLabel').textContent = up ? 'Seu primeiro nome' : 'Seu usuário';
+  $('loginGo').textContent = up ? 'Criar conta e começar 🎧' : 'Entrar';
+  $('loginPass').autocomplete = up ? 'new-password' : 'current-password';
+  $('loginErr').textContent = '';
+  updateHandle();
+}
+function updateHandle() {
+  const h = toHandle($('loginName').value);
+  $('loginHandle').innerHTML = authMode === 'signup' && h ? `Seu usuário será <b>@${esc(h)}</b>` : '';
+}
+async function submitLogin(e) {
+  e.preventDefault();
+  const name = $('loginName').value.trim(), pass = $('loginPass').value, h = toHandle(name), err = $('loginErr');
+  err.textContent = '';
+  if (h.length < 2 || h.length > 20) return err.textContent = 'Use um nome com 2 a 20 letras ou números.';
+  if (pass.length < 6) return err.textContent = 'A senha precisa ter pelo menos 6 caracteres.';
+  const btn = $('loginGo'); btn.disabled = true; const label = btn.textContent; btn.textContent = 'Um instante…';
+  try {
+    let j;
+    if (authMode === 'signup') {
+      j = await authCall('signup', { email: handleEmail(h), password: pass, data: { name, handle: h } });
+      if (!j.access_token) throw Object.assign(new Error('confirm'), { code: 'needs_confirm' });
+    } else {
+      j = await authCall('token?grant_type=password', { email: handleEmail(h), password: pass });
+    }
+    const display = j.user?.user_metadata?.name || name;
+    startUser({ handle: h, name: display, userId: j.user?.id, access_token: j.access_token, refresh_token: j.refresh_token, at: Date.now() });
+    $('loginPass').value = '';
+    boot(); toast(`Olá, ${display}! 👋`);
+  } catch (ex) {
+    const c = String(ex.code || '') + ' ' + ex.message;
+    if (/already|exists|registered/i.test(c)) err.innerHTML = `O usuário <b>@${esc(h)}</b> já existe. Tente outro, como <b>${esc(h + (Math.floor(Math.random() * 90) + 10))}</b> — ou toque em “Já tenho conta”.`;
+    else if (/invalid_credentials|invalid login|invalid_grant/i.test(c)) err.textContent = 'Usuário ou senha incorretos.';
+    else if (/needs_confirm/.test(c)) err.textContent = 'Conta criada, mas o Supabase está pedindo confirmação de e-mail. Desligue "Confirm email" no Supabase.';
+    else if (/weak_password/i.test(c)) err.textContent = 'Senha fraca demais. Use pelo menos 6 caracteres.';
+    else if (ex instanceof TypeError) err.textContent = 'Sem conexão com a internet. Verifique o Wi-Fi e tente de novo.';
+    else err.textContent = 'Não deu certo: ' + ex.message;
+  } finally { btn.disabled = false; btn.textContent = label; }
+}
+$('loginForm').onsubmit = submitLogin;
+$('loginName').oninput = updateHandle;
+$('loginTabs').onclick = e => { const b = e.target.closest('[data-auth]'); if (b) { authMode = b.dataset.auth; renderLogin(); } };
+$('loginEye').onclick = () => { const i = $('loginPass'); i.type = i.type === 'password' ? 'text' : 'password'; $('loginEye').textContent = i.type === 'password' ? '👁' : '🙈'; };
+$('btnLogout').onclick = () => {
+  if (!confirm('Sair desta conta? Seu progresso continua salvo neste aparelho.')) return;
+  localStorage.removeItem(AUTH_KEY); location.reload();
+};
+
+function boot() {
+  booted = true;
+  S = load();
+  const sess = AUTH_ON && getSession();
+  $('accountBox').classList.toggle('hidden', !sess);
+  if (sess) $('accountName').textContent = `${sess.name} · @${sess.handle}`;
+  rollDay();
+  show('home');
+  if (!Object.keys(S.songs).length) openPick(true);
+  else maybeFlash();
+}
+if (!AUTH_ON) boot();
+else {
+  const sess = getSession();
+  if (sess?.handle) { startUser(sess); boot(); }
+  else { authMode = localStorage.getItem('refrao.legacyClaimed') ? 'login' : 'signup'; renderLogin(); show('login'); }
+}
 
 if ('serviceWorker' in navigator) navigator.serviceWorker.register('sw.js').catch(() => {});
