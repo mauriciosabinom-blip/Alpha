@@ -4,5 +4,8 @@
 // A "anon/publishable key" é pública por natureza — pode ficar aqui sem problema.
 window.REFRAO_CONFIG = {
   supabaseUrl: '',
-  supabaseKey: ''
+  supabaseKey: '',
+  // Opcional: chave gratuita da "YouTube Data API v3" (Google Cloud). Deixa a busca
+  // automática do vídeo 100% confiável. Vazio = usa espelhos públicos gratuitos do YouTube.
+  youtubeKey: ''
 };

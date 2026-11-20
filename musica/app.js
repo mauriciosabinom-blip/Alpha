@@ -362,7 +362,7 @@ async function adoptSong(item) {
   show('loading'); $('loadingText').textContent = `Preparando ${phrases.length} frases…`; $('loadingBar').style.width = '0';
   const failed = await translateAll(phrases, p => { $('loadingBar').style.width = (p * 100) + '%'; });
   if (item.synced) attachTimes(phrases, item.synced);
-  const song = { id: uid(), title: item.title, artist: item.artist, album: item.album || '', cover: item.cover || null, palette: item.palette || null, addedAt: Date.now(), phrases };
+  const song = { id: uid(), title: item.title, artist: item.artist, album: item.album || '', cover: item.cover || null, palette: item.palette || null, duration: item.duration || 0, addedAt: Date.now(), phrases };
   S.songs[song.id] = song; S.activeSongId = song.id; S.daily.chosen = true; save();
   show('home');
   if (failed) toast(`${failed} frase(s) ficaram sem tradução — dá pra escrever tocando em ✎ no cartão.`, 5000);
@@ -507,7 +507,7 @@ function renderCard() {
   $('cardFeedback').classList.add('hidden');
   const body = $('cardBody'); body.style.transform = ''; body.style.opacity = '';
   ytStop(); $('btnSing').classList.toggle('ready', !!(song.yt && p.times?.length));
-  if (song.yt) prepPlayer(song);
+  if (song.yt) prepPlayer(song); else autoFindVideo(song); // procura sozinho, antes do toque no 🎤
 }
 function renderPt() {
   const [, p] = session.cur;
@@ -652,7 +652,7 @@ $('searchForm').onsubmit = e => { e.preventDefault(); $('searchInput').blur(); s
 $('results').onclick = e => {
   const b = e.target.closest('[data-res]'); if (!b) return;
   const x = searchResults[+b.dataset.res];
-  openConfirm({ title: x.trackName, artist: x.artistName, album: x.albumName, lyrics: x.plainLyrics, synced: x.syncedLyrics || '', cover: x.cover || null });
+  openConfirm({ title: x.trackName, artist: x.artistName, album: x.albumName, lyrics: x.plainLyrics, synced: x.syncedLyrics || '', duration: x.duration || 0, cover: x.cover || null });
 };
 $('library').onclick = e => {
   const b = e.target.closest('[data-lib]'); if (!b) return;
@@ -732,7 +732,13 @@ async function prepPlayer(song) {
       playerVars: { playsinline: 1, rel: 0, modestbranding: 1, controls: 1 },
       events: {
         onReady: () => { ytReady = true; },
-        onError: () => { ytStop(); toast('Esse vídeo não pode tocar fora do YouTube. Troque o link (🔗) — de preferência "Official Audio" ou "Lyric Video".', 5000); }
+        onError: () => {
+          ytStop();
+          const song = session?.cur?.[0];
+          // vídeo bloqueado fora do YouTube? tenta sozinho a próxima versão encontrada
+          if (song?.yt?.alts?.length) { song.yt.id = song.yt.alts.shift(); save(); ytPlayer.cueVideoById(song.yt.id); ytVid = song.yt.id; toast('Essa versão não toca aqui — trocando por outra. Toque em 🎤 de novo.', 3500); }
+          else { if (song) { delete song.yt; ytTried.add(song.id); save(); $('btnSing').classList.remove('ready'); } toast('Não consegui tocar essa música aqui. Vou usar a voz 🔊', 4000); }
+        }
       }
     });
   } else if (ytReady && ytVid !== song.yt.id) { ytPlayer.cueVideoById(song.yt.id); ytVid = song.yt.id; }
@@ -742,7 +748,11 @@ function renderYtOffset(song) { const o = song.yt?.offset || 0; $('ytOff').textC
 function playSnippet() {
   if (!session?.cur) return;
   const [song, p] = session.cur;
-  if (!song.yt) return openYtSheet(song);
+  if (!song.yt) {
+    if (ytSearching.has(song.id)) { toast('🔎 Procurando a música no YouTube… toque de novo em um instante'); return; }
+    if (!ytTried.has(song.id)) { autoFindVideo(song); toast('🔎 Procurando a música no YouTube…'); return; }
+    toast('Não achei essa música no YouTube agora — lendo com a voz 🔊'); return speak(p.en);
+  }
   if (!p.times?.length) { toast('Essa frase não tem o tempo na música — vou ler com a voz 🔊'); return speak(p.en); }
   if (!ytReady) { toast('Carregando a música… toque de novo em 🎤 em um instante'); prepPlayer(song); return; }
   speechSynthesis?.cancel();
@@ -757,6 +767,61 @@ function playSnippet() {
   p._last = [from, to];
 }
 const ytIdFrom = s => (s.match(/(?:youtu\.be\/|[?&]v=|shorts\/|embed\/|live\/)([\w-]{11})/) || s.trim().match(/^([\w-]{11})$/) || [])[1] || null;
+/* ----- busca automática do vídeo -----
+ * 1) YouTube Data API (se houver chave no config.js)  2) espelhos públicos Piped (YouTube Music)
+ * 3) espelhos públicos Invidious. Prioriza a faixa de áudio oficial ("Artista - Topic"),
+ * que é a mesma gravação da letra sincronizada — o tempo das frases bate sem ajuste.        */
+const PIPED = ['https://pipedapi.kavin.rocks', 'https://pipedapi.adminforge.de', 'https://api.piped.private.coffee', 'https://pipedapi.r4fo.com'];
+const INVID = ['https://inv.nadeko.net', 'https://invidious.nerdvpn.de', 'https://yewtu.be', 'https://invidious.privacyredirect.com'];
+const ytTried = new Set(), ytSearching = new Set();
+async function fetchJSON(url, ms = 7000) {
+  const c = new AbortController(), t = setTimeout(() => c.abort(), ms);
+  try { const r = await fetch(url, { signal: c.signal }); if (!r.ok) throw new Error(r.status); return await r.json(); }
+  finally { clearTimeout(t); }
+}
+async function searchVideos(song) {
+  const q = encodeURIComponent(`${song.title} ${song.artist}`);
+  if (CFG.youtubeKey) {
+    try {
+      const j = await fetchJSON(`https://www.googleapis.com/youtube/v3/search?part=snippet&type=video&videoEmbeddable=true&maxResults=8&q=${encodeURIComponent(`${song.title} ${song.artist} audio`)}&key=${CFG.youtubeKey}`);
+      const out = (j.items || []).map(i => ({ id: i.id?.videoId, title: i.snippet?.title || '', channel: i.snippet?.channelTitle || '' })).filter(x => x.id);
+      if (out.length) return out;
+    } catch (e) {}
+  }
+  const tries = [
+    ...PIPED.map(b => async () => (await fetchJSON(`${b}/search?q=${q}&filter=music_songs`)).items
+      .map(x => ({ id: (x.url?.match(/v=([\w-]{11})/) || [])[1], title: x.title || '', channel: (x.uploaderName || '') + ' - Topic', dur: x.duration }))),
+    ...INVID.map(b => async () => (await fetchJSON(`${b}/api/v1/search?q=${q}&type=video`))
+      .map(x => ({ id: x.videoId, title: x.title || '', channel: x.author || '', dur: x.lengthSeconds })))
+  ];
+  for (const t of tries) { try { const out = (await t()).filter(x => x.id); if (out.length) return out; } catch (e) {} }
+  return [];
+}
+function scoreVideo(c, song) {
+  const t = norm(c.title), ch = norm(c.channel), st = norm(song.title), ar = norm(song.artist);
+  let s = 0;
+  if (/ topic$/.test(ch)) s += 4;
+  if (t.includes(st)) s += 3;
+  if (ch.includes(ar) || t.includes(ar)) s += 1;
+  if (/official audio|\baudio\b/.test(t)) s += 2;
+  if (/lyric/.test(t)) s += 1;
+  if (/\b(live|ao vivo|cover|karaoke|remix|8d|sped up|slowed|instrumental|reaction|tutorial|piano|acoustic)\b/.test(t) && !/\b(live|remix|acoustic)\b/.test(st)) s -= 6;
+  if (song.duration && c.dur && Math.abs(c.dur - song.duration) > 8) s -= 3;
+  return s;
+}
+async function autoFindVideo(song) {
+  if (song.yt || ytTried.has(song.id) || ytSearching.has(song.id)) return;
+  ytSearching.add(song.id);
+  try {
+    const found = (await searchVideos(song)).map(c => ({ ...c, s: scoreVideo(c, song) })).filter(c => c.s > 0).sort((a, b) => b.s - a.s);
+    const ids = [...new Set(found.map(c => c.id))];
+    if (ids.length) {
+      song.yt = { id: ids[0], offset: 0, auto: true, alts: ids.slice(1, 5) }; save();
+      await ensureTimes(song, true);
+      if (session?.cur?.[0] === song) { prepPlayer(song); $('btnSing').classList.toggle('ready', !!session.cur[1].times?.length); }
+    }
+  } finally { ytSearching.delete(song.id); ytTried.add(song.id); }
+}
 let ytSheetSong = null;
 function openYtSheet(song) {
   ytSheetSong = song;
@@ -765,7 +830,7 @@ function openYtSheet(song) {
   $('ytErr').textContent = '';
   $('ytSheet').classList.remove('hidden');
 }
-async function ensureTimes(song) {
+async function ensureTimes(song, quiet) {
   if (song.phrases.some(p => p.times?.length)) return;
   try {
     const q = `track_name=${encodeURIComponent(song.title)}&artist_name=${encodeURIComponent(song.artist)}`;
@@ -778,8 +843,8 @@ async function ensureTimes(song) {
     }
     const n = synced ? attachTimes(song.phrases, synced) : 0;
     save();
-    toast(n ? `🎤 ${n} de ${song.phrases.length} frases com o trecho da música` : 'Essa música não tem letra sincronizada — o 🎤 vai usar a voz.', 4000);
-  } catch (e) { toast('Sem conexão para buscar os tempos da letra agora.'); }
+    if (!quiet) toast(n ? `🎤 ${n} de ${song.phrases.length} frases com o trecho da música` : 'Essa música não tem letra sincronizada — o 🎤 vai usar a voz.', 4000);
+  } catch (e) { if (!quiet) toast('Sem conexão para buscar os tempos da letra agora.'); }
 }
 $('btnSing').onclick = playSnippet;
 $('ytSave').onclick = async () => {
