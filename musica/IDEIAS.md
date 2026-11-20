@@ -27,5 +27,13 @@ Cantar junto com um amigo conectado na plataforma.
 - **Como fazer:** Supabase Realtime para sincronizar início, verso atual e notas.
 - **Pontos de atenção:** ouvir a voz do outro em tempo real exige chamada de áudio (WebRTC) e tem atraso; começar com "cantar ao mesmo tempo e comparar notas", ou revezar versos.
 
+## 4. Compartilhar resultados no Instagram (com link do app)
+Com um toque, o usuário compartilha sua pontuação, a música que dominou ou seu progresso.
+- Gera uma **imagem bonita** no formato Stories (capa do álbum, nome da música, % aprendido, nota de pronúncia, dias seguidos 🔥) com o link/QR code do Refrão.
+- Botão "Compartilhar" abre o menu do iPhone/iPad (Instagram, WhatsApp etc.) já com a imagem e o link.
+- Momentos para oferecer: música dominada 🏆, meta do dia batida, nota do karaokê.
+- **Como fazer:** desenhar a imagem no próprio app (canvas) + Web Share API do navegador. Sem custo e sem servidor.
+- **Pontos de atenção:** o Instagram não aceita link clicável no post, só no Stories (figurinha de link) e na bio — por isso a imagem leva o endereço escrito e um QR code. "Baixar o app" hoje = abrir o link e adicionar à tela de início; com app na App Store, o link aponta para a loja.
+
 ## Ordem sugerida
 1. Ativar o login (Supabase) → 2. Karaokê com nota de pronúncia (funciona sem servidor) → 3. Rede social/chat → 4. Karaokê online.
