@@ -458,7 +458,9 @@ function renderCard() {
   const art = bgStyle(song);
   if ($('cardArt').dataset.song !== song.id) { $('cardArt').style.cssText = art; $('cardThumb').style.cssText = art; $('cardArt').dataset.song = song.id; }
   const md = modeOf(song);
-  $('cardCount').textContent = md === 'lyric' ? `📖 ${(song.lyricPos ?? 0) + 1}/${sungOrder(song).length}` : isFinite(session.left) ? `${session.done + 1}/${session.done + session.left}` : `${S.daily.done}/${S.settings.goal}`;
+  // "Na ordem": posição da frase na música (ex.: 3/50). Demais modos: meta do dia (ex.: 7/20).
+  const ordered = md === 'seq' ? [...song.phrases].sort((a, b) => a.order - b.order) : null;
+  $('cardCount').textContent = ordered ? `🎵 ${ordered.indexOf(p) + 1}/${ordered.length}` : isFinite(session.left) ? `${session.done + 1}/${session.done + session.left}` : `${S.daily.done}/${S.settings.goal}`;
   $('cardCount').classList.toggle('hidden', false);
 
   let banner = '';

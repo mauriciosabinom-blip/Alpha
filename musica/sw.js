@@ -1,5 +1,5 @@
 // Service worker: deixa o app abrir mesmo sem internet (o estudo funciona offline).
-const CACHE = 'refrao-v8';
+const CACHE = 'refrao-v9';
 const SHELL = ['./', 'index.html', 'manifest.webmanifest', 'icon.svg', 'icon-192.png', 'icon-512.png'];
 self.addEventListener('install', e => { e.waitUntil(caches.open(CACHE).then(c => c.addAll(SHELL))); self.skipWaiting(); });
 self.addEventListener('activate', e => {
