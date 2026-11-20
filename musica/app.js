@@ -361,6 +361,8 @@ function seqNext(song) {
   const pending = ordered.filter(p => !(p.seen && p.level === MAX_LEVEL));
   const list = pending.length ? pending : ordered;
   const cur = song.cursor ?? -1;
+  // saiu sem responder (✕ ou app fechado)? volta para a mesma frase
+  if (song.cursorDone === false) { const same = ordered.find(p => p.order === cur); if (same) return [song, same]; }
   const next = list.find(p => p.order > cur);
   if (!next) { if (cur >= 0) toast('🔁 Fim da letra — recomeçando do início'); return [song, list[0]]; }
   return [song, next];
@@ -431,7 +433,7 @@ function nextCard(forced) {
   if (!pair) { endSession(); toast('Nenhuma frase para estudar ainda.'); return; }
   session.cur = pair; session.revealed = false; session.helped = false;
   const md = modeOf(pair[0]);
-  if (md === 'seq') pair[0].cursor = pair[1].order;
+  if (md === 'seq') { pair[0].cursor = pair[1].order; pair[0].cursorDone = false; }
   if (md === 'lyric' && forced) { const i = sungOrder(pair[0]).indexOf(pair[1]); if (i >= 0) pair[0].lyricPos = i; }
   save();
   recent = [pair[1].id, ...recent.filter(x => x !== pair[1].id)].slice(0, 3);
@@ -460,6 +462,8 @@ function renderCard() {
   const md = modeOf(song);
   // "Na ordem": posição da frase na música (ex.: 3/50). Demais modos: meta do dia (ex.: 7/20).
   const ordered = md === 'seq' ? [...song.phrases].sort((a, b) => a.order - b.order) : null;
+  $('seqNav').classList.toggle('hidden', !ordered);
+  if (ordered) { const i = ordered.indexOf(p); $('btnPrev').disabled = i <= 0; $('btnNext').disabled = i >= ordered.length - 1; }
   $('cardCount').textContent = ordered ? `🎵 ${ordered.indexOf(p) + 1}/${ordered.length}` : isFinite(session.left) ? `${session.done + 1}/${session.done + session.left}` : `${S.daily.done}/${S.settings.goal}`;
   $('cardCount').classList.toggle('hidden', false);
 
@@ -510,6 +514,7 @@ function renderPt() {
 function answer(knew) {
   if (!session?.cur) return;
   const [song, p] = session.cur;
+  if (modeOf(song) === 'seq') song.cursorDone = true;
   const now = Date.now(), before = p.level, wasNew = !p.seen;
   let msg, sub = '';
   if (!p.seen) p.seen = true;
@@ -656,6 +661,21 @@ $('btnReset').onclick = () => { if (confirm('Apagar todas as músicas e o progre
 
 // cartão
 $('cardClose').onclick = endSession;
+// ‹ Anterior / Próxima › (modo "Na ordem"): anda pela letra sem responder
+function seqStep(dir) {
+  if (!session?.cur) return;
+  const [song] = session.cur, p = session.cur[1];
+  const ordered = [...song.phrases].sort((a, b) => a.order - b.order);
+  const target = ordered[ordered.indexOf(p) + dir]; if (!target) return;
+  session.cur = [song, target]; session.revealed = false; session.helped = false;
+  song.cursor = target.order; song.cursorDone = false; save();
+  const body = $('cardBody'); body.style.transition = 'none'; body.style.transform = `translateX(${dir * 40}px)`; body.style.opacity = '0';
+  renderCard();
+  requestAnimationFrame(() => { body.style.transition = ''; body.style.transform = ''; body.style.opacity = ''; });
+  if (S.settings.speak) speak(target.en);
+}
+$('btnPrev').onclick = () => seqStep(-1);
+$('btnNext').onclick = () => seqStep(1);
 $('btnYes').onclick = () => answer(true);
 $('btnNo').onclick = () => answer(false);
 $('btnDoubt').onclick = reveal;
