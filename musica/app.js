@@ -281,17 +281,40 @@ function cleanLines(text) {
   return text.split(/\r?\n/).map(l => l.replace(/\[.*?\]/g, '').replace(/\s+/g, ' ').trim())
     .filter(l => l && !/^\(?(chorus|verse|bridge|intro|outro|refr[aã]o|pre-chorus)[\s\d:)]*$/i.test(l));
 }
-function buildPhrases(text) {
-  const lines = cleanLines(text);
+// versos muito curtos se juntam ao próximo para formar uma frase com sentido
+function mergeShort(items) {
   const out = [];
-  for (let i = 0; i < lines.length; i++) {
-    let line = lines[i];
-    // versos muito curtos se juntam ao próximo para formar uma frase com sentido
-    while (line.split(' ').length < 4 && i + 1 < lines.length && (line + ' ' + lines[i + 1]).split(' ').length <= 16) {
-      line += (/[,.!?;:]$/.test(line) ? ' ' : ', ') + lines[++i];
+  for (let i = 0; i < items.length; i++) {
+    const it = { ...items[i] };
+    while (it.text.split(' ').length < 4 && i + 1 < items.length && (it.text + ' ' + items[i + 1].text).split(' ').length <= 16) {
+      it.text += (/[,.!?;:]$/.test(it.text) ? ' ' : ', ') + items[++i].text; it.end = items[i].end;
     }
-    out.push(line);
+    out.push(it);
   }
+  return out;
+}
+// Letra sincronizada do lrclib ("[00:32.15] Look at the stars") -> frases com início/fim em segundos
+function timedSegments(synced) {
+  const raw = [];
+  for (const l of (synced || '').split(/\r?\n/)) {
+    const ts = [...l.matchAll(/\[(\d+):(\d+(?:\.\d+)?)\]/g)]; if (!ts.length) continue;
+    const text = cleanLines(l.replace(/\[\d+:[\d.]+\]/g, ''))[0] || '';
+    for (const m of ts) raw.push({ t: +m[1] * 60 + +m[2], text });
+  }
+  raw.sort((a, b) => a.t - b.t);
+  raw.forEach((r, i) => r.end = Math.min(raw[i + 1]?.t ?? r.t + 6, r.t + 12)); // pausas longas não viram trecho
+  return mergeShort(raw.filter(r => r.text).map(r => ({ text: r.text, start: r.t, end: r.end })));
+}
+// Dá a cada frase os trechos (início/fim) em que ela é cantada
+function attachTimes(phrases, synced) {
+  const map = new Map();
+  for (const sg of timedSegments(synced)) { const k = norm(sg.text); if (!map.has(k)) map.set(k, []); map.get(k).push([+sg.start.toFixed(2), +sg.end.toFixed(2)]); }
+  let n = 0;
+  for (const p of phrases) { const t = map.get(norm(p.en)); if (t) { p.times = t; n++; } }
+  return n;
+}
+function buildPhrases(text) {
+  const out = mergeShort(cleanLines(text).map(t => ({ text: t }))).map(x => x.text);
   const map = new Map();
   out.forEach((en, order) => {
     const k = norm(en);
@@ -338,6 +361,7 @@ async function adoptSong(item) {
   if (phrases.length < 2) { toast('Essa letra está vazia ou curta demais.'); return; }
   show('loading'); $('loadingText').textContent = `Preparando ${phrases.length} frases…`; $('loadingBar').style.width = '0';
   const failed = await translateAll(phrases, p => { $('loadingBar').style.width = (p * 100) + '%'; });
+  if (item.synced) attachTimes(phrases, item.synced);
   const song = { id: uid(), title: item.title, artist: item.artist, album: item.album || '', cover: item.cover || null, palette: item.palette || null, addedAt: Date.now(), phrases };
   S.songs[song.id] = song; S.activeSongId = song.id; S.daily.chosen = true; save();
   show('home');
@@ -421,6 +445,7 @@ function startSession(count, forced) {
   nextCard(forced);
 }
 function endSession() {
+  ytStop(); $('ytBox').classList.add('collapsed');
   $('card').classList.add('hidden'); session = null; hideWordPop(); speechSynthesis?.cancel();
   if (current === 'home') renderHome(); else if (current === 'lyrics') renderLyrics();
 }
@@ -481,6 +506,8 @@ function renderCard() {
   renderPt();
   $('cardFeedback').classList.add('hidden');
   const body = $('cardBody'); body.style.transform = ''; body.style.opacity = '';
+  ytStop(); $('btnSing').classList.toggle('ready', !!(song.yt && p.times?.length));
+  if (song.yt) prepPlayer(song);
 }
 function renderPt() {
   const [, p] = session.cur;
@@ -625,7 +652,7 @@ $('searchForm').onsubmit = e => { e.preventDefault(); $('searchInput').blur(); s
 $('results').onclick = e => {
   const b = e.target.closest('[data-res]'); if (!b) return;
   const x = searchResults[+b.dataset.res];
-  openConfirm({ title: x.trackName, artist: x.artistName, album: x.albumName, lyrics: x.plainLyrics, cover: x.cover || null });
+  openConfirm({ title: x.trackName, artist: x.artistName, album: x.albumName, lyrics: x.plainLyrics, synced: x.syncedLyrics || '', cover: x.cover || null });
 };
 $('library').onclick = e => {
   const b = e.target.closest('[data-lib]'); if (!b) return;
@@ -681,6 +708,97 @@ $('btnNo').onclick = () => answer(false);
 $('btnDoubt').onclick = reveal;
 $('btnSpeak').onclick = () => session?.cur && speak(session.cur[1].en);
 $('btnSlow').onclick = () => session?.cur && speak(session.cur[1].en, 0.6);
+
+/* ---------------- 🎤 ouvir o trecho real da música (YouTube) ----------------
+ * Tempos de cada frase: letra sincronizada do lrclib. Áudio: player oficial do YouTube
+ * (visível no cartão enquanto toca). Link do vídeo: colado uma vez por música.          */
+let ytPlayer = null, ytReady = false, ytApi = null, ytTimer = null, ytVid = null;
+function loadYT() {
+  if (ytApi) return ytApi;
+  ytApi = new Promise(res => {
+    window.onYouTubeIframeAPIReady = res;
+    const s = document.createElement('script'); s.src = 'https://www.youtube.com/iframe_api';
+    s.onerror = () => { ytApi = null; toast('Não consegui carregar o YouTube. Verifique a internet.'); };
+    document.head.appendChild(s);
+  });
+  return ytApi;
+}
+async function prepPlayer(song) {
+  await loadYT();
+  if (!ytPlayer) {
+    ytVid = song.yt.id;
+    ytPlayer = new YT.Player('ytFrame', {
+      width: '100%', height: '100%', videoId: song.yt.id,
+      playerVars: { playsinline: 1, rel: 0, modestbranding: 1, controls: 1 },
+      events: {
+        onReady: () => { ytReady = true; },
+        onError: () => { ytStop(); toast('Esse vídeo não pode tocar fora do YouTube. Troque o link (🔗) — de preferência "Official Audio" ou "Lyric Video".', 5000); }
+      }
+    });
+  } else if (ytReady && ytVid !== song.yt.id) { ytPlayer.cueVideoById(song.yt.id); ytVid = song.yt.id; }
+}
+function ytStop() { clearInterval(ytTimer); ytTimer = null; try { if (ytReady) ytPlayer.pauseVideo(); } catch (e) {} }
+function renderYtOffset(song) { const o = song.yt?.offset || 0; $('ytOff').textContent = `sincronia ${o > 0 ? '+' : ''}${o.toFixed(1).replace('.', ',')}s`; }
+function playSnippet() {
+  if (!session?.cur) return;
+  const [song, p] = session.cur;
+  if (!song.yt) return openYtSheet(song);
+  if (!p.times?.length) { toast('Essa frase não tem o tempo na música — vou ler com a voz 🔊'); return speak(p.en); }
+  if (!ytReady) { toast('Carregando a música… toque de novo em 🎤 em um instante'); prepPlayer(song); return; }
+  speechSynthesis?.cancel();
+  // se a frase aparece várias vezes, alterna entre os trechos
+  const k = (p._ti = ((p._ti ?? -1) + 1) % p.times.length);
+  const [s, e] = p.times[k], off = song.yt.offset || 0, from = Math.max(0, s + off - 0.25), to = e + off + 0.35;
+  $('ytBox').classList.remove('collapsed'); renderYtOffset(song);
+  if (ytVid !== song.yt.id) { ytPlayer.loadVideoById({ videoId: song.yt.id, startSeconds: from }); ytVid = song.yt.id; }
+  else { ytPlayer.seekTo(from, true); ytPlayer.playVideo(); }
+  clearInterval(ytTimer);
+  ytTimer = setInterval(() => { try { if (ytPlayer.getCurrentTime() >= to) ytStop(); } catch (e) {} }, 100);
+  p._last = [from, to];
+}
+const ytIdFrom = s => (s.match(/(?:youtu\.be\/|[?&]v=|shorts\/|embed\/|live\/)([\w-]{11})/) || s.trim().match(/^([\w-]{11})$/) || [])[1] || null;
+let ytSheetSong = null;
+function openYtSheet(song) {
+  ytSheetSong = song;
+  $('ytSearch').href = 'https://www.youtube.com/results?search_query=' + encodeURIComponent(`${song.title} ${song.artist} official audio`);
+  $('ytInput').value = song.yt ? 'https://youtu.be/' + song.yt.id : '';
+  $('ytErr').textContent = '';
+  $('ytSheet').classList.remove('hidden');
+}
+async function ensureTimes(song) {
+  if (song.phrases.some(p => p.times?.length)) return;
+  try {
+    const q = `track_name=${encodeURIComponent(song.title)}&artist_name=${encodeURIComponent(song.artist)}`;
+    let synced = '';
+    const r = await fetch('https://lrclib.net/api/get?' + q);
+    if (r.ok) synced = (await r.json()).syncedLyrics || '';
+    if (!synced) {
+      const s = await (await fetch('https://lrclib.net/api/search?q=' + encodeURIComponent(song.title + ' ' + song.artist))).json();
+      synced = (s.find(x => x.syncedLyrics) || {}).syncedLyrics || '';
+    }
+    const n = synced ? attachTimes(song.phrases, synced) : 0;
+    save();
+    toast(n ? `🎤 ${n} de ${song.phrases.length} frases com o trecho da música` : 'Essa música não tem letra sincronizada — o 🎤 vai usar a voz.', 4000);
+  } catch (e) { toast('Sem conexão para buscar os tempos da letra agora.'); }
+}
+$('btnSing').onclick = playSnippet;
+$('ytSave').onclick = async () => {
+  const id = ytIdFrom($('ytInput').value);
+  if (!id) { $('ytErr').textContent = 'Não reconheci esse link. Cole o link copiado do YouTube (botão Compartilhar → Copiar link).'; return; }
+  const song = ytSheetSong; song.yt = { id, offset: song.yt?.id === id ? song.yt.offset || 0 : 0 }; save();
+  $('ytSheet').classList.add('hidden');
+  if (ytReady) { ytPlayer.cueVideoById(id); ytVid = id; } else prepPlayer(song);
+  await ensureTimes(song);
+  if (session?.cur?.[0] === song) { $('btnSing').classList.toggle('ready', !!session.cur[1].times?.length); toast('Pronto! Toque em 🎤 para ouvir o trecho', 3000); }
+};
+$('ytCancel').onclick = () => $('ytSheet').classList.add('hidden');
+$('ytSheet').onclick = e => { if (e.target === $('ytSheet')) $('ytSheet').classList.add('hidden'); };
+const nudge = d => { const song = session?.cur?.[0]; if (!song?.yt) return; song.yt.offset = Math.round(((song.yt.offset || 0) + d) * 10) / 10; save(); renderYtOffset(song); session.cur[1]._ti = (session.cur[1]._ti ?? 0) - 1; playSnippet(); };
+$('ytMinus').onclick = () => nudge(-0.5);
+$('ytPlus').onclick = () => nudge(0.5);
+$('ytAgain').onclick = () => { if (session?.cur) { session.cur[1]._ti = (session.cur[1]._ti ?? 0) - 1; playSnippet(); } };
+$('ytLink').onclick = () => session?.cur && openYtSheet(session.cur[0]);
+$('ytHide').onclick = () => { ytStop(); $('ytBox').classList.add('collapsed'); };
 const editPt = () => {
   if (!session?.cur) return; const p = session.cur[1];
   const v = prompt('Tradução desta frase:', p.pt); if (v === null) return;

@@ -14,7 +14,7 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,500;9..144,600;9..144,700;9..144,800&family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="style.css?v=11">
+<link rel="stylesheet" href="style.css?v=12">
 </head>
 <body>
 <div id="bgArt"></div><div id="bgShade"></div>
@@ -191,11 +191,23 @@
   </div>
 
   <div id="cardBody" class="card-body">
+    <div id="ytBox" class="ytbox collapsed">
+      <div class="ytframe"><div id="ytFrame"></div></div>
+      <div class="yt-tools">
+        <button class="chip-btn" id="ytMinus" aria-label="Trecho mais cedo">−0,5s</button>
+        <span id="ytOff" class="muted small">sincronia 0,0s</span>
+        <button class="chip-btn" id="ytPlus" aria-label="Trecho mais tarde">+0,5s</button>
+        <button class="chip-btn" id="ytAgain" aria-label="Repetir trecho">↺</button>
+        <button class="chip-btn" id="ytLink" aria-label="Trocar vídeo">🔗</button>
+        <button class="chip-btn" id="ytHide" aria-label="Fechar vídeo">✕</button>
+      </div>
+    </div>
     <div id="cardBanner" class="banner"></div>
     <div id="cardContext" class="context"></div>
     <div id="cardEn" class="en"></div>
     <div class="divider"><div class="tools">
       <button class="icon-btn" id="btnSpeak" aria-label="Ouvir">🔊</button>
+      <button class="icon-btn sing" id="btnSing" aria-label="Ouvir o trecho da música">🎤</button>
       <button class="icon-btn" id="btnSlow" aria-label="Ouvir devagar">🐢</button>
       <button class="icon-btn" id="btnEdit" aria-label="Corrigir tradução">✎</button>
     </div></div>
@@ -225,10 +237,25 @@
   <button class="icon-btn" id="wpSpeak" aria-label="Ouvir palavra">🔊</button>
 </div>
 
+<!-- link do YouTube da música -->
+<div id="ytSheet" class="sheet-backdrop hidden">
+  <div class="sheet">
+    <div class="sheet-icon">🎤</div>
+    <h3>Ouvir o trecho da música</h3>
+    <p class="muted">Cole o link do YouTube desta música uma única vez. Depois, o 🎤 toca só o pedaço de cada frase, na voz do artista.</p>
+    <a class="btn" id="ytSearch" target="_blank" rel="noopener" style="width:100%">🔎 Buscar no YouTube ↗</a>
+    <p class="muted small" style="margin:10px 0">No YouTube: abra o vídeo → <b>Compartilhar</b> → <b>Copiar link</b> → volte aqui e cole. Prefira <b>“Official Audio”</b> ou <b>“Lyric Video”</b> (o tempo bate melhor que o clipe).</p>
+    <input id="ytInput" class="input" placeholder="https://youtu.be/..." inputmode="url" autocomplete="off">
+    <div id="ytErr" class="login-err" style="margin-top:8px"></div>
+    <button class="btn primary big" id="ytSave">Salvar e usar</button>
+    <button class="btn" id="ytCancel" style="width:100%;margin-top:10px">Agora não</button>
+  </div>
+</div>
+
 <div id="toast" class="toast hidden"></div>
 <div id="confetti"></div>
 
-<script src="config.js?v=11"></script>
-<script src="app.js?v=11"></script>
+<script src="config.js?v=12"></script>
+<script src="app.js?v=12"></script>
 </body>
 </html>
