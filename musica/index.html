@@ -14,7 +14,7 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,500;9..144,600;9..144,700;9..144,800&family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="style.css?v=14">
+<link rel="stylesheet" href="style.css?v=15">
 </head>
 <body>
 <div id="bgArt"></div><div id="bgShade"></div>
@@ -51,6 +51,7 @@
     <div class="brand"><span class="logo">♪</span>Refrão</div>
     <div class="stats">
       <span class="chip" id="streakChip" title="Dias seguidos estudando">🔥 0</span>
+      <button class="icon-btn" id="btnShare" aria-label="Compartilhar">📤</button>
       <button class="icon-btn" id="btnSettings" aria-label="Ajustes">⚙️</button>
     </div>
   </header>
@@ -252,11 +253,23 @@
   </div>
 </div>
 
+<!-- compartilhar resultado -->
+<div id="shareSheet" class="sheet-backdrop hidden">
+  <div class="sheet">
+    <h3>Compartilhe sua conquista</h3>
+    <p class="muted small">Pronta para o Stories do Instagram, WhatsApp e mais — com o link do Refrão.</p>
+    <div class="share-preview"><img id="shareImg" alt="Prévia da imagem para compartilhar"></div>
+    <button class="btn primary big" id="shareGo">📤 Compartilhar</button>
+    <button class="btn" id="shareClose" style="width:100%;margin-top:10px">Agora não</button>
+  </div>
+</div>
+
 <div id="toast" class="toast hidden"></div>
 <div id="confetti"></div>
 
-<script src="config.js?v=14"></script>
-<script src="moderacao.js?v=14"></script>
-<script src="app.js?v=14"></script>
+<script src="config.js?v=15"></script>
+<script src="moderacao.js?v=15"></script>
+<script src="app.js?v=15"></script>
+<script src="share.js?v=15"></script>
 </body>
 </html>

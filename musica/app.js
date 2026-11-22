@@ -154,7 +154,7 @@ function markStudied() {
     S.streak.last = t;
   }
   S.daily.done++;
-  if (S.daily.done === S.settings.goal) setTimeout(() => { confetti(['🔥', '🎯', '🎉']); toast(`Meta do dia batida! ${S.settings.goal} frases 🎯`); }, 600);
+  if (S.daily.done === S.settings.goal) setTimeout(() => { confetti(['🔥', '🎯', '🎉']); toast(`Meta do dia batida! ${S.settings.goal} frases 🎯 · toque em 📤 para compartilhar`, 4500); }, 600);
 }
 
 /* ---------------- HOME ---------------- */
@@ -572,7 +572,8 @@ function answer(knew) {
   const body = $('cardBody'); body.style.transform = `translateX(${knew ? 60 : -60}px)`; body.style.opacity = '0';
   // música toda dominada?
   if (knew && p.level === MAX_LEVEL && before < MAX_LEVEL && song.phrases.every(x => x.level === MAX_LEVEL)) {
-    setTimeout(() => { confetti(['🏆', '🎤', '🎉', '⭐']); toast(`Você dominou "${song.title}" inteira! Que tal escolher a próxima? 🎤`, 5000); }, 500);
+    setTimeout(() => { confetti(['🏆', '🎤', '🎉', '⭐']); toast(`Você dominou "${song.title}" inteira! 🏆`, 4000); }, 500);
+    setTimeout(() => { endSession(); window.openShare?.('mastered', song); }, 2200);
   }
   setTimeout(() => nextCard(), 950);
 }
