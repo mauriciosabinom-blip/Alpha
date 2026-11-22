@@ -102,9 +102,35 @@ const Push = (() => {
   const clearBadge = () => { if (document.hidden) return; navigator.clearAppBadge?.().catch(() => {}); navigator.serviceWorker?.ready.then(r => r.getNotifications()).then(ns => ns.forEach(n => n.close())).catch(() => {}); };
   document.addEventListener('visibilitychange', clearBadge); clearBadge();
 
+  /* ---------- convite (tela nossa antes da janela do iPhone, que só pode aparecer uma vez) ----------
+   * 'start': logo depois de criar a conta / primeiro acesso nesta versão
+   * 'friend': de novo, uma única vez, ao fazer o primeiro amigo — se antes a pessoa disse "Agora não" */
+  const askKey = r => `refrao.notifAsk:${getSession()?.handle}:${r}`;
+  async function maybeAsk(reason) {
+    if (!sb || !getSession() || localStorage.getItem(askKey(reason))) return;
+    if (reason === 'friend' && !localStorage.getItem(askKey('start'))) return;
+    if ((typeof session !== 'undefined' && session) || !$('karaoke').classList.contains('hidden')) { setTimeout(() => maybeAsk(reason), 4000); return; } // não atrapalha o estudo
+    const st = await state();
+    if (st !== 'off' && st !== 'install') return;
+    localStorage.setItem(askKey(reason), String(Date.now()));
+    const install = st === 'install';
+    $('notifIcon').textContent = install ? '📲' : '🔔🎵';
+    $('notifTitle').textContent = install ? 'Instale o Refrão no seu iPhone' : reason === 'friend' ? 'Seu amigo pode te chamar!' : 'Quer ser avisado das mensagens?';
+    $('notifText').textContent = install
+      ? 'Assim ele vira um app de verdade na sua tela e pode te avisar quando chegar mensagem.'
+      : 'Quando um amigo te mandar mensagem ou te chamar para cantar, o Refrão te avisa — mesmo com o app fechado.';
+    $('notifSteps').classList.toggle('hidden', !install);
+    $('notifYes').textContent = install ? 'Entendi' : '🔔 Ativar avisos';
+    $('notifNo').classList.toggle('hidden', install);
+    $('notifSheet').dataset.mode = install ? 'install' : 'ask';
+    $('notifSheet').classList.remove('hidden');
+  }
+  $('notifYes').onclick = () => { $('notifSheet').classList.add('hidden'); if ($('notifSheet').dataset.mode === 'ask') enable(); };
+  $('notifNo').onclick = () => { $('notifSheet').classList.add('hidden'); toast('Tudo bem! Dá para ativar depois em ⚙️ Ajustes.', 3500); };
+
   $('pushBtn').onclick = async () => ((await state()) === 'on' ? disable() : enable());
   $('pushBannerBtn').onclick = enable;
-  return { render, enable, forget, chime, state };
+  return { render, enable, forget, chime, state, maybeAsk };
 })();
 window.Push = Push;
 Push.render();

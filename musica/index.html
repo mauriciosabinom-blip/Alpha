@@ -14,7 +14,7 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,500;9..144,600;9..144,700;9..144,800&family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="style.css?v=20">
+<link rel="stylesheet" href="style.css?v=21">
 </head>
 <body>
 <div id="bgArt"></div><div id="bgShade"></div>
@@ -403,17 +403,34 @@
   </div>
 </div>
 
+<!-- convite: avisos de mensagem / instalar na Tela de Início -->
+<div id="notifSheet" class="sheet-backdrop hidden">
+  <div class="sheet">
+    <div class="sheet-icon" id="notifIcon">🔔🎵</div>
+    <h3 id="notifTitle"></h3>
+    <p class="muted" id="notifText"></p>
+    <ol class="install-steps hidden" id="notifSteps">
+      <li>No Safari, toque em <b>Compartilhar</b> <span class="kbd">⬆️</span> (na barra de baixo no iPhone, em cima no iPad).</li>
+      <li>Role e toque em <b>“Adicionar à Tela de Início”</b> → <b>Adicionar</b>.</li>
+      <li>Abra o Refrão pelo <b>ícone 🎧</b> e entre na sua conta — seu progresso vem junto.</li>
+    </ol>
+    <button class="btn primary big" id="notifYes">🔔 Ativar avisos</button>
+    <button class="btn" id="notifNo" style="width:100%;margin-top:10px">Agora não</button>
+  </div>
+</div>
+
 <div id="toast" class="toast hidden"></div>
 <div id="confetti"></div>
 
 <script src="vendor/supabase.js?v=18"></script>
 <script src="config.js?v=18"></script>
 <script src="moderacao.js?v=18"></script>
-<script src="app.js?v=20"></script>
+<script src="app.js?v=21"></script>
 <script src="share.js?v=18"></script>
-<script src="karaoke.js?v=18"></script>
-<script src="social.js?v=20"></script>
+<script src="karaoke.js?v=21"></script>
+<script src="social.js?v=21"></script>
 <script src="duet.js?v=20"></script>
-<script src="push.js?v=20"></script>
+<script src="push.js?v=21"></script>
+<script src="sync.js?v=21"></script>
 </body>
 </html>

@@ -38,7 +38,9 @@ function load() {
   } catch (e) {}
   return defaults();
 }
-function save() { try { localStorage.setItem(STORE_KEY, JSON.stringify(S)); } catch (e) { toast('Não consegui salvar 😕'); } }
+function save() { try { localStorage.setItem(STORE_KEY, JSON.stringify(S)); } catch (e) { toast('Não consegui salvar 😕'); } window.Sync?.schedule(); }
+// marca o que mudou de verdade (para juntar o progresso entre aparelhos sem perder nada)
+function touch(song) { const t = Date.now(); if (song) song.touched = t; S.updatedAt = t; }
 
 /* ---------------- utilidades ---------------- */
 const $ = id => document.getElementById(id);
@@ -363,7 +365,7 @@ async function adoptSong(item) {
   const failed = await translateAll(phrases, p => { $('loadingBar').style.width = (p * 100) + '%'; });
   if (item.synced) attachTimes(phrases, item.synced);
   const song = { id: uid(), title: item.title, artist: item.artist, album: item.album || '', cover: item.cover || null, palette: item.palette || null, duration: item.duration || 0, addedAt: Date.now(), phrases };
-  S.songs[song.id] = song; S.activeSongId = song.id; S.daily.chosen = true; save();
+  touch(song); S.songs[song.id] = song; S.activeSongId = song.id; S.daily.chosen = true; save();
   show('home');
   if (failed) toast(`${failed} frase(s) ficaram sem tradução — dá pra escrever tocando em ✎ no cartão.`, 5000);
   else { confetti(['🎵', '🎶', '🎧']); toast('Música pronta! Vamos começar 🎧'); }
@@ -460,6 +462,7 @@ function nextCard(forced) {
   const md = modeOf(pair[0]);
   if (md === 'seq') { pair[0].cursor = pair[1].order; pair[0].cursorDone = false; }
   if (md === 'lyric' && forced) { const i = sungOrder(pair[0]).indexOf(pair[1]); if (i >= 0) pair[0].lyricPos = i; }
+  if (md !== 'random') touch(pair[0]);
   save();
   recent = [pair[1].id, ...recent.filter(x => x !== pair[1].id)].slice(0, 3);
   renderCard();
@@ -541,6 +544,7 @@ function renderPt() {
 function answer(knew) {
   if (!session?.cur) return;
   const [song, p] = session.cur;
+  touch(song);
   if (modeOf(song) === 'seq') song.cursorDone = true;
   const now = Date.now(), before = p.level, wasNew = !p.seen;
   let msg, sub = '';
@@ -633,7 +637,7 @@ $('btnStudy').onclick = () => startSession(Infinity);
 $('hero').onclick = e => {
   const b = e.target.closest('.seg [data-mode]'); if (!b) return;
   const song = S.songs[S.activeSongId]; if (!song || modeOf(song) === b.dataset.mode) return;
-  song.mode = b.dataset.mode; save(); renderHome();
+  song.mode = b.dataset.mode; touch(song); save(); renderHome();
   if (song.mode === 'seq') toast(`🎵 Na ordem da música, ${song.cursor == null ? 'do começo' : 'de onde você parou'} · frases dominadas saem da fila`);
   else if (song.mode === 'lyric') toast(`📖 Decorar a letra: a música inteira, verso a verso${song.lyricPos == null ? '' : ', de onde você parou'}`);
   else toast('🔀 Frases em ordem aleatória');
@@ -657,7 +661,7 @@ $('results').onclick = e => {
 };
 $('library').onclick = e => {
   const b = e.target.closest('[data-lib]'); if (!b) return;
-  S.activeSongId = b.dataset.lib; S.daily.chosen = true; save(); show('home');
+  S.activeSongId = b.dataset.lib; S.daily.chosen = true; touch(); save(); show('home');
   toast(`Estudando: ${S.songs[S.activeSongId].title}`);
 };
 $('manGo').onclick = () => {
@@ -671,11 +675,11 @@ $('lyricsList').onclick = e => {
   startSession(1, [song, p]);
 };
 
-$('setGoal').onchange = e => { S.settings.goal = +e.target.value; save(); };
-$('setBurst').onchange = e => { S.settings.burst = +e.target.value; save(); };
-$('setUnlock').onchange = e => { S.settings.unlock = e.target.checked; save(); };
-$('setSpeak').onchange = e => { S.settings.speak = e.target.checked; save(); };
-$('setMix').onchange = e => { S.settings.mix = e.target.checked; save(); };
+$('setGoal').onchange = e => { S.settings.goal = +e.target.value; touch(); save(); };
+$('setBurst').onchange = e => { S.settings.burst = +e.target.value; touch(); save(); };
+$('setUnlock').onchange = e => { S.settings.unlock = e.target.checked; touch(); save(); };
+$('setSpeak').onchange = e => { S.settings.speak = e.target.checked; touch(); save(); };
+$('setMix').onchange = e => { S.settings.mix = e.target.checked; touch(); save(); };
 $('btnExport').onclick = () => {
   const a = document.createElement('a');
   a.href = URL.createObjectURL(new Blob([JSON.stringify(S)], { type: 'application/json' }));
@@ -685,7 +689,7 @@ $('importFile').onchange = async e => {
   try { const d = JSON.parse(await e.target.files[0].text()); if (!d.songs) throw 0; S = Object.assign(defaults(), d); save(); toast('Backup importado ✓'); show('home'); }
   catch (_) { toast('Arquivo inválido.'); }
 };
-$('btnReset').onclick = () => { if (confirm('Apagar todas as músicas e o progresso?')) { S = defaults(); save(); show('home'); } };
+$('btnReset').onclick = () => { if (confirm('Apagar todas as músicas e o progresso?')) { S = defaults(); touch(); S.resetAt = Date.now(); save(); window.Sync?.reset(); show('home'); } };
 
 // cartão
 $('cardClose').onclick = endSession;
@@ -696,7 +700,7 @@ function seqStep(dir) {
   const ordered = [...song.phrases].sort((a, b) => a.order - b.order);
   const target = ordered[ordered.indexOf(p) + dir]; if (!target) return;
   session.cur = [song, target]; session.revealed = false; session.helped = false;
-  song.cursor = target.order; song.cursorDone = false; save();
+  song.cursor = target.order; song.cursorDone = false; touch(song); save();
   const body = $('cardBody'); body.style.transition = 'none'; body.style.transform = `translateX(${dir * 40}px)`; body.style.opacity = '0';
   renderCard();
   requestAnimationFrame(() => { body.style.transition = ''; body.style.transform = ''; body.style.opacity = ''; });
@@ -868,7 +872,7 @@ $('ytHide').onclick = () => { ytStop(); $('ytBox').classList.add('collapsed'); }
 const editPt = () => {
   if (!session?.cur) return; const p = session.cur[1];
   const v = prompt('Tradução desta frase:', p.pt); if (v === null) return;
-  p.pt = v.trim(); save(); renderPt();
+  p.pt = v.trim(); touch(session.cur[0]); save(); renderPt();
 };
 $('btnEdit').onclick = editPt;
 $('cardPt').onclick = e => {
@@ -1079,6 +1083,7 @@ function boot() {
   $('emailBox').classList.toggle('hidden', !sess || !sb);
   if (sess) { $('accountName').textContent = `${sess.name} · @${sess.handle}`; renderEmailStatus(); }
   window.Push?.render();
+  if (sess) setTimeout(() => window.Push?.maybeAsk('start'), 1800);
   rollDay();
   show('home');
   if (!Object.keys(S.songs).length) openPick(true);
@@ -1093,6 +1098,7 @@ async function connectAccount(sess) {
     if (data.session) { delete sess.access_token; delete sess.refresh_token; sess.userId = data.session.user.id; localStorage.setItem(AUTH_KEY, JSON.stringify(sess)); }
     window.__socialSession = data.session || null;
     window.Social?.start(data.session || null);
+    window.Sync?.start(data.session || null);
   } catch (e) { window.__socialSession = null; window.Social?.start(null); }
 }
 if (!AUTH_ON) boot();

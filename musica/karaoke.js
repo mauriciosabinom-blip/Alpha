@@ -147,7 +147,7 @@ function kFinish() {
   const scored = reached.length >= 2 ? reached : kLines;
   const words = scored.reduce((a, l) => a + l.words.length, 0) || 1;
   const score = Math.round(scored.reduce((a, l) => a + scoreLine(l) * l.words.length, 0) / words * 100);
-  S.karaoke = S.karaoke || []; S.karaoke.push({ songId: kSong.id, title: kSong.title, score, date: Date.now(), lines: scored.length }); save();
+  S.karaoke = S.karaoke || []; S.karaoke.push({ songId: kSong.id, title: kSong.title, score, date: Date.now(), lines: scored.length }); touch(); save();
   $('kScore').textContent = score;
   $('kScoreMsg').textContent = score >= 90 ? 'Pronúncia de nativo! 🤩' : score >= 75 ? 'Mandou muito bem! 👏' : score >= 50 ? 'Bom caminho — continue treinando 💪' : 'Treine os versos em vermelho e tente de novo 🎯';
   $('kRing').style.setProperty('--p', score);

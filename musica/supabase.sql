@@ -392,3 +392,20 @@ grant usage on schema public to service_role;
 grant select, insert, update, delete on public.app_secrets, public.push_subscriptions, public.profiles,
   public.messages, public.friendships, public.karaoke_scores, public.login_attempts, public.blocked_words to service_role;
 grant usage, select on all sequences in schema public to service_role;
+
+-- ---------- Progresso de estudo salvo na conta (igual em todos os aparelhos) ----------
+create table if not exists public.user_state (
+  user_id uuid primary key default auth.uid() references public.profiles (id) on delete cascade,
+  data jsonb not null check (pg_column_size(data) < 3000000),
+  updated_at timestamptz not null default now()
+);
+alter table public.user_state enable row level security;
+drop policy if exists "ver meu progresso" on public.user_state;
+create policy "ver meu progresso" on public.user_state for select to authenticated using (user_id = auth.uid());
+drop policy if exists "criar meu progresso" on public.user_state;
+create policy "criar meu progresso" on public.user_state for insert to authenticated with check (user_id = auth.uid());
+drop policy if exists "salvar meu progresso" on public.user_state;
+create policy "salvar meu progresso" on public.user_state for update to authenticated using (user_id = auth.uid()) with check (user_id = auth.uid());
+revoke all on public.user_state from anon;
+grant select, insert, update on public.user_state to authenticated;
+grant select, insert, update, delete on public.user_state to service_role;

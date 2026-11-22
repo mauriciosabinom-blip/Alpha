@@ -319,3 +319,10 @@ a.btn{text-decoration:none;color:var(--text)}
 
 .push-banner{display:flex;align-items:center;gap:10px;padding:10px 12px;margin-bottom:12px;border-radius:18px;font-size:.9rem;line-height:1.35}
 .push-banner span{flex:1}
+
+.install-steps{text-align:left;line-height:1.55;margin:0 0 16px;padding-left:22px;color:var(--muted)}
+.install-steps li{margin-bottom:8px}
+.install-steps b{color:var(--text)}
+.kbd{display:inline-block;padding:0 6px;border-radius:6px;background:var(--glass2)}
+/* com um painel aberto embaixo, avisos rápidos aparecem no topo */
+body:has(.sheet-backdrop:not(.hidden)) .toast{bottom:auto;top:max(70px,calc(env(safe-area-inset-top) + 60px))}

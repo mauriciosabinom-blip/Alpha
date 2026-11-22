@@ -62,7 +62,7 @@ const Social = (() => {
       .on('postgres_changes', { event: '*', schema: 'public', table: 'friendships' }, async p => {
         const f = p.new && p.new.id ? p.new : null;
         if (p.eventType === 'INSERT' && f?.addressee === me.id) { await loadProfiles([f.requester]); toast(`👋 @${who(f.requester).handle} quer ser seu amigo`, 4000); }
-        if (p.eventType === 'UPDATE' && f?.status === 'accepted' && f.requester === me.id) { await loadProfiles([f.addressee]); toast(`🤝 @${who(f.addressee).handle} aceitou sua amizade`, 4000); }
+        if (p.eventType === 'UPDATE' && f?.status === 'accepted' && f.requester === me.id) { await loadProfiles([f.addressee]); toast(`🤝 @${who(f.addressee).handle} aceitou sua amizade`, 4000); setTimeout(() => window.Push?.maybeAsk('friend'), 2500); }
         refresh().catch(() => {});
       })
       .subscribe();
@@ -177,7 +177,7 @@ const Social = (() => {
       const r = rev ? await sb.from('friendships').update({ status: 'accepted' }).eq('id', rev.id) : await sb.from('friendships').insert({ requester: me.id, addressee: id });
       if (r.error) throw r.error; toast(rev ? '🤝 Agora vocês são amigos!' : '✓ Pedido de amizade enviado'); $('socialSearch').value = ''; $('socialResults').innerHTML = '';
     });
-    if (t.dataset.accept) act(async () => { const r = await sb.from('friendships').update({ status: 'accepted' }).eq('id', t.dataset.accept); if (r.error) throw r.error; toast('🤝 Agora vocês são amigos!'); $('socialResults').innerHTML = ''; });
+    if (t.dataset.accept) act(async () => { const r = await sb.from('friendships').update({ status: 'accepted' }).eq('id', t.dataset.accept); if (r.error) throw r.error; toast('🤝 Agora vocês são amigos!'); $('socialResults').innerHTML = ''; setTimeout(() => window.Push?.maybeAsk('friend'), 2500); });
     if (t.dataset.del) act(async () => { const r = await sb.from('friendships').delete().eq('id', t.dataset.del); if (r.error) throw r.error; });
     if (t.dataset.chat) openChat(t.dataset.chat);
   };
