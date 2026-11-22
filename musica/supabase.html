@@ -1,0 +1,37 @@
+<!doctype html>
+<html lang="pt-br">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Refrão · Banco</title>
+<style>
+  :root{--bg:#0f0c1a;--text:#f7f4ff;--muted:#b4aecb;--line:rgba(255,255,255,.14);--a:#8b5cf6;--b:#ec4899}
+  body{margin:0;background:var(--bg);color:var(--text);font-family:system-ui,-apple-system,"Segoe UI",Roboto,sans-serif}
+  main{max-width:900px;margin:0 auto;padding:20px 16px}
+  h1{font-size:1.4rem;margin:0 0 6px}
+  p{color:var(--muted);line-height:1.5;margin:0 0 14px}
+  button{border:0;border-radius:14px;padding:14px 22px;font-size:1.05rem;font-weight:700;color:#fff;cursor:pointer;background:linear-gradient(135deg,var(--a),var(--b))}
+  #ok{margin-left:12px;color:#34d399;font-weight:700}
+  pre{margin-top:16px;background:rgba(255,255,255,.06);border:1px solid var(--line);border-radius:14px;padding:14px;max-height:60vh;overflow:auto;font-size:.8rem;white-space:pre-wrap;word-break:break-word}
+</style>
+</head>
+<body>
+<main>
+  <h1>Refrão · código do banco de dados</h1>
+  <p>1. Clique em <b>Copiar tudo</b>. 2. No Supabase, abra <b>SQL Editor → New query</b>, cole (<b>Ctrl+V</b>) e clique em <b>Run</b>.</p>
+  <button id="copy">📋 Copiar tudo</button><span id="ok"></span>
+  <pre id="sql">Carregando…</pre>
+</main>
+<script>
+  const pre = document.getElementById('sql'), ok = document.getElementById('ok');
+  fetch('supabase.sql?_=' + Date.now(), { cache: 'no-store' }).then(r => r.text()).then(t => { pre.textContent = t; })
+    .catch(() => { pre.textContent = 'Não consegui carregar. Recarregue a página.'; });
+  document.getElementById('copy').onclick = async () => {
+    const t = pre.textContent;
+    try { await navigator.clipboard.writeText(t); ok.textContent = '✓ Copiado! Agora cole no SQL Editor do Supabase.'; }
+    catch (e) { const r = document.createRange(); r.selectNodeContents(pre); getSelection().removeAllRanges(); getSelection().addRange(r);
+      ok.textContent = 'Texto selecionado — aperte Ctrl+C para copiar.'; }
+  };
+</script>
+</body>
+</html>
