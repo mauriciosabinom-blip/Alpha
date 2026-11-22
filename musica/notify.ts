@@ -9,7 +9,14 @@ import webpush from "npm:web-push@3.6.7";
 import { createClient } from "npm:@supabase/supabase-js@2.118.0";
 
 const APP_URL = "https://mauriciosabinom-blip.github.io/Alpha/musica/";
-const sb = createClient(Deno.env.get("SUPABASE_URL")!, Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!, {
+// chave de servidor: formato antigo (SUPABASE_SERVICE_ROLE_KEY) ou novo (SUPABASE_SECRET_KEYS = {"default":"sb_secret_..."})
+function serverKey(): string {
+  const legacy = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY");
+  if (legacy) return legacy;
+  const raw = Deno.env.get("SUPABASE_SECRET_KEYS") ?? Deno.env.get("SUPABASE_SECRET_KEY") ?? "";
+  try { const o = JSON.parse(raw); return (o.default ?? Object.values(o)[0]) as string; } catch { return raw; }
+}
+const sb = createClient(Deno.env.get("SUPABASE_URL")!, serverKey(), {
   auth: { persistSession: false, autoRefreshToken: false },
 });
 const cors = {
