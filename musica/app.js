@@ -963,6 +963,7 @@ async function submitLogin(e) {
   err.textContent = '';
   if (h.length < 2 || h.length > 20) return err.textContent = 'Use um nome com 2 a 20 letras ou números.';
   if (pass.length < 6) return err.textContent = 'A senha precisa ter pelo menos 6 caracteres.';
+  if (authMode === 'signup' && window.temPalavrao && (temPalavrao(name) || temPalavrao(h))) return err.textContent = 'Esse nome não é permitido. Escolha outro.';
   const btn = $('loginGo'); btn.disabled = true; const label = btn.textContent; btn.textContent = 'Um instante…';
   try {
     let j;
