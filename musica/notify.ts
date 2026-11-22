@@ -28,7 +28,8 @@ const json = (data: unknown, status = 200) =>
   new Response(JSON.stringify(data), { status, headers: { ...cors, "Content-Type": "application/json" } });
 
 async function getSecret(key: string): Promise<string | null> {
-  const { data } = await sb.from("app_secrets").select("value").eq("key", key).maybeSingle();
+  const { data, error } = await sb.from("app_secrets").select("value").eq("key", key).maybeSingle();
+  if (error) throw new Error("banco: " + error.message);
   return data?.value ?? null;
 }
 async function vapidKeys() {
@@ -36,10 +37,11 @@ async function vapidKeys() {
   if (!pub || !priv) {
     const k = webpush.generateVAPIDKeys();
     // "ignoreDuplicates": se duas chamadas criarem ao mesmo tempo, fica a primeira
-    await sb.from("app_secrets").upsert(
+    const { error } = await sb.from("app_secrets").upsert(
       [{ key: "vapid_public", value: k.publicKey }, { key: "vapid_private", value: k.privateKey }],
       { onConflict: "key", ignoreDuplicates: true },
     );
+    if (error) throw new Error("banco (salvar chaves): " + error.message);
     pub = await getSecret("vapid_public"); priv = await getSecret("vapid_private");
   }
   return { pub: pub!, priv: priv! };
@@ -52,11 +54,12 @@ Deno.serve(async (req) => {
     // o app pede a chave pública para registrar o aparelho
     if (req.method === "GET") return json({ publicKey: pub });
 
-    // só o gatilho do banco (que conhece a senha interna) pode mandar notificações
-    if (req.headers.get("x-refrao-secret") !== await getSecret("push_secret")) return json({ error: "forbidden" }, 403);
+    // só o gatilho do banco (que conhece a senha interna) pode mandar notificações — sem senha válida, recusa sempre
+    const secret = await getSecret("push_secret");
+    if (!secret || req.headers.get("x-refrao-secret") !== secret) return json({ error: "forbidden" }, 403);
     const m = await req.json() as { sender: string; receiver: string; body: string };
     const [{ data: subs }, { data: prof }] = await Promise.all([
-      sb.from("push_subscriptions").select("id, endpoint, p256dh, auth").eq("user_id", m.receiver),
+      sb.from("push_subscriptions").select("id, endpoint, p256dh, auth").eq("user_id", m.receiver).then((r) => { if (r.error) throw new Error("banco: " + r.error.message); return r; }),
       sb.from("profiles").select("handle").eq("id", m.sender).maybeSingle(),
     ]);
     if (!subs?.length) return json({ sent: 0 });

@@ -384,3 +384,11 @@ $$;
 drop trigger if exists messages_push on public.messages;
 create trigger messages_push after insert on public.messages
   for each row execute procedure public.notify_new_message();
+
+-- ---------- Acesso do servidor (função "notify") às tabelas ----------
+-- Necessário quando o projeto foi criado sem "Grant API access to new tables".
+-- O service_role só existe no servidor (nunca no app) e ignora as regras de linha.
+grant usage on schema public to service_role;
+grant select, insert, update, delete on public.app_secrets, public.push_subscriptions, public.profiles,
+  public.messages, public.friendships, public.karaoke_scores, public.login_attempts, public.blocked_words to service_role;
+grant usage, select on all sequences in schema public to service_role;
