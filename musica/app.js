@@ -183,7 +183,7 @@ function renderHome() {
     const demo = { title: 'Refrão', artist: 'music' };
     hero.innerHTML = `<div class="hero-empty"><div class="art" style="${bgStyle(demo)}"></div>
       <h2>Sua trilha para o inglês</h2><div class="artist">Escolha uma música e aprenda frase por frase 🎶</div></div>`;
-    $('btnStudy').disabled = true; $('btnLyrics').disabled = true; $('miniStats').innerHTML = '';
+    $('btnStudy').disabled = true; $('btnLyrics').disabled = true; $('btnKaraoke').disabled = true; $('miniStats').innerHTML = '';
   } else {
     const st = songStats(song);
     hero.innerHTML = `<div class="vinyl-wrap has-sleeve">
@@ -198,7 +198,7 @@ function renderHome() {
     const fresh = song.phrases.filter(p => !p.seen).length;
     $('miniStats').innerHTML = `<div class="glass"><b>${st.mastered}</b><span>🏆 dominadas</span></div>
       <div class="glass"><b>${learning}</b><span>🌱 aprendendo</span></div><div class="glass"><b>${fresh}</b><span>✨ novas</span></div>`;
-    $('btnStudy').disabled = false; $('btnLyrics').disabled = false;
+    $('btnStudy').disabled = false; $('btnLyrics').disabled = false; $('btnKaraoke').disabled = false;
   }
 }
 

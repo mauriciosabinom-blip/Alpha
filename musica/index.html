@@ -14,7 +14,7 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,500;9..144,600;9..144,700;9..144,800&family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="style.css?v=15">
+<link rel="stylesheet" href="style.css?v=16">
 </head>
 <body>
 <div id="bgArt"></div><div id="bgShade"></div>
@@ -62,7 +62,8 @@
     <button class="btn primary big" id="btnStudy">▶&nbsp; Estudar agora</button>
     <div class="row">
       <button class="btn" id="btnLyrics">📜 Letra</button>
-      <button class="btn" id="btnPick">🎵 Trocar música</button>
+      <button class="btn" id="btnKaraoke">🎤 Karaokê</button>
+      <button class="btn" id="btnPick">🎵 Trocar</button>
     </div>
   </div>
 
@@ -253,6 +254,40 @@
   </div>
 </div>
 
+<!-- ===== KARAOKÊ ===== -->
+<div id="karaoke" class="overlay hidden">
+  <div class="art-bg" id="kArt"></div><div class="art-shade"></div>
+  <div class="card-top"><button class="icon-btn kclose" aria-label="Fechar">✕</button><div class="card-meta" style="justify-content:center"><b>🎤 Karaokê</b></div><span style="width:44px"></span></div>
+
+  <div id="kIntro" class="k-intro">
+    <h2 id="kTitle"></h2><div class="muted" id="kArtist"></div>
+    <div class="k-how glass">
+      <div>🎧 <b>Use fone de ouvido</b> — senão o microfone escuta a música em vez de você.</div>
+      <div>🎙 Cante junto acompanhando a letra. No fim você recebe uma <b>nota de pronúncia</b> (não é nota de voz!).</div>
+      <div id="kMicWarn" class="hidden">⚠️ Este navegador não tem reconhecimento de fala — dá para cantar, mas sem nota. No iPhone/iPad use o Safari.</div>
+    </div>
+    <div class="muted small" id="kBest"></div>
+    <button class="btn primary big" id="kGo" disabled>▶ Começar</button>
+    <div class="muted small center" id="kStatus" style="margin-top:10px"></div>
+  </div>
+
+  <div id="kStage" class="k-stage hidden">
+    <div class="kvideo"><div id="kFrame"></div></div>
+    <div class="kbar"><div id="kProgress"></div></div>
+    <div id="kLyrics" class="k-lyrics"></div>
+    <div id="kLive" class="k-live"></div>
+    <button class="btn" id="kStop" style="width:100%">⏹ Terminar e ver a nota</button>
+  </div>
+
+  <div id="kResult" class="k-result hidden">
+    <div class="k-ring" id="kRing"><span id="kScore">0</span></div>
+    <div class="k-label">nota de pronúncia</div>
+    <h3 id="kScoreMsg"></h3>
+    <div class="row"><button class="btn" id="kAgain">↺ Cantar de novo</button><button class="btn primary" id="kShare">📤 Compartilhar</button></div>
+    <div id="kLines" class="k-lines"></div>
+  </div>
+</div>
+
 <!-- compartilhar resultado -->
 <div id="shareSheet" class="sheet-backdrop hidden">
   <div class="sheet">
@@ -267,9 +302,10 @@
 <div id="toast" class="toast hidden"></div>
 <div id="confetti"></div>
 
-<script src="config.js?v=15"></script>
-<script src="moderacao.js?v=15"></script>
-<script src="app.js?v=15"></script>
-<script src="share.js?v=15"></script>
+<script src="config.js?v=16"></script>
+<script src="moderacao.js?v=16"></script>
+<script src="app.js?v=16"></script>
+<script src="share.js?v=16"></script>
+<script src="karaoke.js?v=16"></script>
 </body>
 </html>
