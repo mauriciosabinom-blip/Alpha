@@ -14,7 +14,7 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,500;9..144,600;9..144,700;9..144,800&family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="style.css?v=16">
+<link rel="stylesheet" href="style.css?v=18">
 </head>
 <body>
 <div id="bgArt"></div><div id="bgShade"></div>
@@ -45,12 +45,54 @@
   </form>
 </section>
 
+<!-- ===== AMIGOS E CONVERSAS ===== -->
+<section id="social" class="screen hidden">
+  <header class="topbar">
+    <button class="icon-btn" id="socialBack" aria-label="Voltar">←</button>
+    <div class="brand" style="font-size:1.15rem">Amigos e conversas</div>
+    <span style="width:44px"></span>
+  </header>
+  <div id="socialMe" class="me-card"></div>
+  <div id="socialOff" class="tip glass hidden">
+    Para conversar com amigos, entre de novo na sua conta.
+    <button class="btn primary" id="socialRelogin" style="width:100%;margin-top:10px">Entrar novamente</button>
+  </div>
+  <div id="socialOn">
+    <div class="search glass"><input id="socialSearch" type="search" placeholder="🔎 Buscar pelo @usuário" autocomplete="off" autocapitalize="none" spellcheck="false"></div>
+    <div id="socialResults" class="plist"></div>
+    <div id="socialRequests" class="plist"></div>
+    <div id="socialFriends" class="plist"></div>
+    <div id="socialSent" class="plist"></div>
+    <p class="muted small center" style="margin-top:22px">💬 Só mensagens de texto · sem fotos, vídeos ou links · palavrões são bloqueados</p>
+  </div>
+</section>
+
+<!-- ===== CONVERSA ===== -->
+<section id="chat" class="screen hidden chat-screen">
+  <header class="topbar chat-top">
+    <button class="icon-btn" id="chatBack" aria-label="Voltar">←</button>
+    <div id="chatTitle" class="chat-title"></div>
+    <button class="icon-btn" id="chatMenu" aria-label="Mais opções">⋯</button>
+    <div id="chatMenuBox" class="menu glass hidden">
+      <button id="chatDuet">🎤 Cantar juntos</button>
+      <button id="chatUnfriend" class="danger-text">Desfazer amizade</button>
+    </div>
+  </header>
+  <div id="chatList" class="chat-list"></div>
+  <div id="chatWarn" class="chat-warn"></div>
+  <form id="chatForm" class="chat-form glass">
+    <input id="chatInput" placeholder="Escreva uma mensagem…" maxlength="1000" autocomplete="off" enterkeyhint="send">
+    <button class="btn primary" type="submit" aria-label="Enviar">➤</button>
+  </form>
+</section>
+
 <!-- ===== HOME ===== -->
 <section id="home" class="screen">
   <header class="topbar">
     <div class="brand"><span class="logo">♪</span>Refrão</div>
     <div class="stats">
       <span class="chip" id="streakChip" title="Dias seguidos estudando">🔥 0</span>
+      <button class="icon-btn social-btn" id="btnSocial" aria-label="Amigos e conversas">💬<span id="socialBadge" class="badge hidden">0</span></button>
       <button class="icon-btn" id="btnShare" aria-label="Compartilhar">📤</button>
       <button class="icon-btn" id="btnSettings" aria-label="Ajustes">⚙️</button>
     </div>
@@ -271,6 +313,19 @@
     <div class="muted small center" id="kStatus" style="margin-top:10px"></div>
   </div>
 
+  <div id="kDuet" class="k-intro hidden">
+    <div class="duet-tag" id="dWith">Dueto</div>
+    <h2 id="dTitle"></h2><div class="muted" id="dArtist"></div>
+    <div class="k-how glass">
+      <div id="dMe"></div>
+      <div id="dPeer"></div>
+    </div>
+    <div class="muted small">🎧 Os dois de fone de ouvido. A música toca junto nos dois aparelhos e cada um recebe sua nota de pronúncia.</div>
+    <button class="btn primary big" id="dReady">🎙 Estou pronto</button>
+    <button class="btn primary big hidden" id="dStart">▶ Começar dueto</button>
+    <div class="muted small center" id="dWait"></div>
+  </div>
+
   <div id="kStage" class="k-stage hidden">
     <div class="kvideo"><div id="kFrame"></div></div>
     <div class="kbar"><div id="kProgress"></div></div>
@@ -284,6 +339,7 @@
     <div class="k-label">nota de pronúncia</div>
     <h3 id="kScoreMsg"></h3>
     <div class="row"><button class="btn" id="kAgain">↺ Cantar de novo</button><button class="btn primary" id="kShare">📤 Compartilhar</button></div>
+    <div id="kDuel"></div>
     <div id="kLines" class="k-lines"></div>
   </div>
 </div>
@@ -302,10 +358,13 @@
 <div id="toast" class="toast hidden"></div>
 <div id="confetti"></div>
 
-<script src="config.js?v=17"></script>
-<script src="moderacao.js?v=16"></script>
-<script src="app.js?v=17"></script>
-<script src="share.js?v=16"></script>
-<script src="karaoke.js?v=16"></script>
+<script src="vendor/supabase.js?v=18"></script>
+<script src="config.js?v=18"></script>
+<script src="moderacao.js?v=18"></script>
+<script src="app.js?v=18"></script>
+<script src="share.js?v=18"></script>
+<script src="karaoke.js?v=18"></script>
+<script src="social.js?v=18"></script>
+<script src="duet.js?v=18"></script>
 </body>
 </html>

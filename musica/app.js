@@ -137,7 +137,7 @@ function applyTheme(song) {
 }
 
 /* ---------------- telas ---------------- */
-const SCREENS = ['home', 'pick', 'confirm', 'loading', 'lyrics', 'settings', 'login'];
+const SCREENS = ['home', 'pick', 'confirm', 'loading', 'lyrics', 'settings', 'login', 'social', 'chat'];
 let current = 'home';
 function show(id) { SCREENS.forEach(s => $(s).classList.toggle('hidden', s !== id)); current = id; window.scrollTo(0, 0); if (id === 'home') renderHome(); }
 
@@ -905,7 +905,7 @@ function maybeFlash() {
   rollDay();
   if (!S.daily.chosen && current !== 'confirm' && current !== 'loading') { if (!session) openPick(true); return; }
   if (!S.settings.unlock || session || !S.songs[S.activeSongId]) return;
-  if (['pick', 'confirm', 'loading', 'settings'].includes(current)) return;
+  if (['pick', 'confirm', 'loading', 'settings', 'social', 'chat', 'login'].includes(current)) return;
   startSession(S.settings.burst);
 }
 document.addEventListener('visibilitychange', () => {
@@ -925,14 +925,22 @@ let booted = false, authMode = 'signup';
 const toHandle = name => name.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().replace(/[^a-z0-9]/g, '');
 const handleEmail = h => `${h}@usuarios.refrao.app`;
 function getSession() { try { return JSON.parse(localStorage.getItem(AUTH_KEY)); } catch (e) { return null; } }
-async function authCall(path, body) {
-  const r = await fetch(CFG.supabaseUrl.replace(/\/$/, '') + '/auth/v1/' + path, {
-    method: 'POST', headers: { 'Content-Type': 'application/json', apikey: CFG.supabaseKey, Authorization: 'Bearer ' + CFG.supabaseKey },
-    body: JSON.stringify(body)
-  });
-  const j = await r.json().catch(() => ({}));
-  if (!r.ok) throw Object.assign(new Error(j.msg || j.error_description || j.message || 'Erro ' + r.status), { code: j.error_code || j.code || j.error, status: r.status });
-  return j;
+// cliente oficial do Supabase: guarda a sessão e a renova sozinho (senão expiraria em 1 hora)
+const sb = AUTH_ON && window.supabase ? window.supabase.createClient(CFG.supabaseUrl, CFG.supabaseKey, {
+  auth: { persistSession: true, storageKey: 'refrao.sb', autoRefreshToken: true, detectSessionInUrl: true }
+}) : null;
+window.sb = sb;
+const authErr = error => Object.assign(new Error(error.message), { code: error.code || error.name, status: error.status });
+async function authSignUp(h, name, pass) {
+  const { data, error } = await sb.auth.signUp({ email: handleEmail(h), password: pass, options: { data: { name, handle: h } } });
+  if (error) throw authErr(error);
+  if (!data.session) throw Object.assign(new Error('confirm'), { code: 'needs_confirm' });
+  return data;
+}
+async function authSignIn(h, pass) {
+  const { data, error } = await sb.auth.signInWithPassword({ email: handleEmail(h), password: pass });
+  if (error) throw authErr(error);
+  return data;
 }
 function startUser(sess) {
   localStorage.setItem(AUTH_KEY, JSON.stringify(sess));
@@ -969,13 +977,12 @@ async function submitLogin(e) {
   try {
     let j;
     if (authMode === 'signup') {
-      j = await authCall('signup', { email: handleEmail(h), password: pass, data: { name, handle: h } });
-      if (!j.access_token) throw Object.assign(new Error('confirm'), { code: 'needs_confirm' });
+      j = await authSignUp(h, name, pass);
     } else {
-      j = await authCall('token?grant_type=password', { email: handleEmail(h), password: pass });
+      j = await authSignIn(h, pass);
     }
     const display = j.user?.user_metadata?.name || name;
-    startUser({ handle: h, name: display, userId: j.user?.id, access_token: j.access_token, refresh_token: j.refresh_token, at: Date.now() });
+    startUser({ handle: h, name: display, userId: j.user?.id, at: Date.now() });
     $('loginPass').value = '';
     boot(); toast(`Olá, ${display}! 👋`);
   } catch (ex) {
@@ -985,7 +992,7 @@ async function submitLogin(e) {
     else if (/needs_confirm/.test(c)) err.textContent = 'Conta criada, mas o Supabase está pedindo confirmação de e-mail. Desligue "Confirm email" no Supabase.';
     else if (/weak_password/i.test(c)) err.textContent = 'Senha fraca demais. Use pelo menos 6 caracteres.';
     else if (authMode === 'signup' && ex.status === 500) err.textContent = 'Não foi possível criar a conta com esse nome. Escolha outro.';
-    else if (ex instanceof TypeError) err.textContent = 'Sem conexão com a internet. Verifique o Wi-Fi e tente de novo.';
+    else if (ex instanceof TypeError || ex.status === 0 || /fetch|network/i.test(ex.message)) err.textContent = 'Sem conexão com a internet. Verifique o Wi-Fi e tente de novo.';
     else err.textContent = 'Não deu certo: ' + ex.message;
   } finally { btn.disabled = false; btn.textContent = label; }
 }
@@ -995,7 +1002,8 @@ $('loginTabs').onclick = e => { const b = e.target.closest('[data-auth]'); if (b
 $('loginEye').onclick = () => { const i = $('loginPass'); i.type = i.type === 'password' ? 'text' : 'password'; $('loginEye').textContent = i.type === 'password' ? '👁' : '🙈'; };
 $('btnLogout').onclick = () => {
   if (!confirm('Sair desta conta? Seu progresso continua salvo neste aparelho.')) return;
-  localStorage.removeItem(AUTH_KEY); location.reload();
+  window.Social?.stop(); localStorage.removeItem(AUTH_KEY);
+  (sb ? sb.auth.signOut().catch(() => {}) : Promise.resolve()).finally(() => location.reload());
 };
 
 function boot() {
@@ -1008,6 +1016,17 @@ function boot() {
   show('home');
   if (!Object.keys(S.songs).length) openPick(true);
   else maybeFlash();
+  if (sess && sb) connectAccount(sess);
+}
+// garante a sessão do Supabase (rede social/chat). Contas criadas antes guardavam o token à parte.
+async function connectAccount(sess) {
+  try {
+    let { data } = await sb.auth.getSession();
+    if (!data.session && sess.refresh_token) ({ data } = await sb.auth.refreshSession({ refresh_token: sess.refresh_token }));
+    if (data.session) { delete sess.access_token; delete sess.refresh_token; sess.userId = data.session.user.id; localStorage.setItem(AUTH_KEY, JSON.stringify(sess)); }
+    window.__socialSession = data.session || null;
+    window.Social?.start(data.session || null);
+  } catch (e) { window.__socialSession = null; window.Social?.start(null); }
 }
 if (!AUTH_ON) boot();
 else {

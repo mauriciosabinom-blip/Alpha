@@ -34,7 +34,7 @@ function kTotal() {
   return Math.round(kLines.reduce((a, l) => a + scoreLine(l) * l.words.length, 0) / words * 100);
 }
 
-function kShow(id) { ['kIntro', 'kStage', 'kResult'].forEach(x => $(x).classList.toggle('hidden', x !== id)); }
+function kShow(id) { ['kIntro', 'kStage', 'kResult', 'kDuet'].forEach(x => $(x).classList.toggle('hidden', x !== id)); }
 async function openKaraoke() {
   const song = S.songs[S.activeSongId]; if (!song) return;
   kSong = song; $('karaoke').classList.remove('hidden'); kShow('kIntro');
@@ -50,33 +50,51 @@ async function openKaraoke() {
   kLines = kTimeline(song);
   if (!song.yt) { $('kStatus').textContent = 'Não achei esta música no YouTube agora. Tente mais tarde.'; return; }
   if (kLines.length < 2) { $('kStatus').textContent = 'Esta música não tem a letra sincronizada — o karaokê precisa dela. Escolha outra música.'; return; }
+  await kEnsurePlayer(song.yt.id);
+  kReadyUI();
+}
+// cria (uma vez) o player do karaokê e espera ficar pronto
+async function kEnsurePlayer(videoId) {
   await loadYT();
   if (!kPlayer) {
-    kPlayer = new YT.Player('kFrame', {
-      width: '100%', height: '100%', videoId: song.yt.id,
-      playerVars: { playsinline: 1, rel: 0, modestbranding: 1, controls: 0, disablekb: 1 },
-      events: { onReady: () => { kReady = true; kReadyUI(); }, onStateChange: e => { if (e.data === 0 && kOn) kFinish(); },
-        onError: () => { $('kStatus').textContent = 'Este vídeo não toca fora do YouTube. Tente de novo mais tarde.'; } }
+    await new Promise(res => {
+      kPlayer = new YT.Player('kFrame', {
+        width: '100%', height: '100%', videoId,
+        playerVars: { playsinline: 1, rel: 0, modestbranding: 1, controls: 0, disablekb: 1 },
+        events: { onReady: () => { kReady = true; res(); }, onStateChange: e => { if (e.data === 0 && kOn) kFinish(); },
+          onError: () => { $('kStatus').textContent = 'Este vídeo não toca fora do YouTube. Tente de novo mais tarde.'; res(); } }
+      });
     });
-  } else { kPlayer.cueVideoById(song.yt.id); kReadyUI(); }
+  } else if (kReady) kPlayer.cueVideoById(videoId);
 }
 function kReadyUI() { if (!kSong) return; $('kGo').disabled = false; $('kStatus').textContent = `${kLines.length} versos prontos · use fone de ouvido 🎧`; }
 
 function kRenderLyrics() {
   $('kLyrics').innerHTML = kLines.map(l => `<div class="kline" data-i="${l.i}">${esc(l.p.en)}</div>`).join('');
 }
-function startKaraoke() {
+let kSync = null; // karaokê online: { base (s), p0 (ms) } — onde a música deveria estar agora
+function startKaraoke(delayMs) {
   if (!kReady) return;
   kLines.forEach(l => { l.heard = []; l.hit = null; l.score = 0; });
   kHeard = []; kCur = -1; kOn = true; kRenderLyrics(); kShow('kStage'); $('kLive').textContent = '';
-  const off = kSong.yt.offset || 0;
-  // tudo dentro do toque (exigência do iPhone para som e microfone)
-  kPlayer.seekTo(Math.max(0, kLines[0].start + off - 4), true); kPlayer.playVideo();
-  startMic();
-  clearInterval(kTimer); kTimer = setInterval(kTick, 120);
+  const off = kSong.yt.offset || 0, from = Math.max(0, kLines[0].start + off - 4);
+  if (!kRec) startMic(); // no toque (exigência do iPhone para o microfone)
+  clearInterval(kTimer);
+  const go = () => { kSync = { base: from, p0: performance.now() }; kPlayer.seekTo(from, true); kPlayer.playVideo(); kTimer = setInterval(kTick, 120); };
+  if (delayMs > 0) {
+    let n = Math.ceil(delayMs / 1000); $('kLive').textContent = `Começa em ${n}…`;
+    const cd = setInterval(() => { n--; $('kLive').textContent = n > 0 ? `Começa em ${n}…` : ''; if (n <= 0) clearInterval(cd); }, 1000);
+    setTimeout(go, delayMs);
+  } else go();
 }
 function kTick() {
   let t; try { t = kPlayer.getCurrentTime() - (kSong.yt.offset || 0); } catch (e) { return; }
+  // mantém a música onde ela deveria estar (no dueto, os dois aparelhos ficam juntos)
+  if (kSync) {
+    const want = kSync.base + (performance.now() - kSync.p0) / 1000, st = kPlayer.getPlayerState?.();
+    if (st === 1 && Math.abs(kPlayer.getCurrentTime() - want) > 0.8) kPlayer.seekTo(want, true);
+    if (st !== 1 && st !== 3 && performance.now() - kSync.p0 > 2500 && !$('kLive').textContent.startsWith('🎙')) $('kLive').textContent = '▶ Se a música não começou, toque no vídeo';
+  }
   let i = -1; for (const l of kLines) { if (l.start - 0.15 <= t) i = l.i; else break; }
   if (i !== kCur) {
     kCur = i;
@@ -119,7 +137,7 @@ function startMic() {
   try { kRec.start(); } catch (e) {}
 }
 function stopAll() {
-  kOn = false; clearInterval(kTimer);
+  kOn = false; kSync = null; clearInterval(kTimer);
   try { kPlayer?.pauseVideo(); } catch (e) {}
   if (kRec) { const r = kRec; kRec = null; try { r.stop(); } catch (e) {} }
 }
@@ -141,14 +159,17 @@ function kFinish() {
   kShow('kResult');
   if (score >= 75) confetti(['🎤', '⭐', '🎉']);
   kLastScore = score;
+  // salva a nota na conta (ranking/histórico) e avisa o parceiro no dueto
+  if (window.Social?.me && window.sb) sb.from('karaoke_scores').insert({ song_title: kSong.title, artist: kSong.artist, score }).then(() => {});
+  window.Duet?.onFinish(score);
 }
 let kLastScore = 0;
-function closeKaraoke() { stopAll(); $('karaoke').classList.add('hidden'); kSong = null; if (current === 'home') renderHome(); }
+function closeKaraoke() { stopAll(); window.Duet?.leave(); $('karaoke').classList.add('hidden'); kSong = null; if (current === 'home') renderHome(); }
 
 $('btnKaraoke').onclick = openKaraoke;
-$('kGo').onclick = startKaraoke;
+$('kGo').onclick = () => startKaraoke(0);
 $('kStop').onclick = kFinish;
-$('kAgain').onclick = () => { kShow('kIntro'); kReadyUI(); };
+$('kAgain').onclick = () => { if (window.Duet?.active) return Duet.again(); kShow('kIntro'); kReadyUI(); };
 $('kShare').onclick = () => { const s = kSong; closeKaraoke(); window.openShare?.('karaoke', s, { score: kLastScore }); };
 document.querySelectorAll('.kclose').forEach(b => b.onclick = closeKaraoke);
 document.addEventListener('visibilitychange', () => { if (document.hidden && kOn) kFinish(); });
