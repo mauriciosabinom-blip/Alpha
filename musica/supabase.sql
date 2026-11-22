@@ -289,3 +289,36 @@ grant execute on function public.has_blocked_words(text), public.has_link(text),
 -- visitantes sem login não acessam nada; a lista de palavras bloqueadas fica invisível para todos
 revoke all on public.profiles, public.friendships, public.messages, public.karaoke_scores, public.blocked_words from anon;
 revoke all on public.blocked_words from authenticated;
+
+-- ---------- E-mail opcional (recuperar senha) mantendo o login pelo @usuario ----------
+-- Quem vincula um e-mail real passa a ter ele como e-mail da conta. Para continuar entrando
+-- pelo @usuario, esta função devolve o e-mail SÓ para quem acerta a senha (com limite de tentativas).
+create table if not exists public.login_attempts (
+  id bigint generated always as identity primary key,
+  handle text not null,
+  at timestamptz not null default now()
+);
+create index if not exists login_attempts_idx on public.login_attempts (handle, at);
+alter table public.login_attempts enable row level security;
+revoke all on public.login_attempts from anon, authenticated;
+
+create or replace function public.login_email(p_handle text, p_password text)
+returns text language plpgsql security definer set search_path = public, extensions as $$
+declare v_email text; v_hash text; v_fails int; h text := lower(coalesce(p_handle, ''));
+begin
+  select count(*) into v_fails from login_attempts where handle = h and at > now() - interval '15 minutes';
+  if v_fails >= 10 then
+    raise exception 'Muitas tentativas. Espere 15 minutos e tente de novo.' using errcode = 'P0001';
+  end if;
+  select a.email, a.encrypted_password into v_email, v_hash
+    from profiles p join auth.users a on a.id = p.id where p.handle = h;
+  if v_hash is null or extensions.crypt(coalesce(p_password, ''), v_hash) <> v_hash then
+    insert into login_attempts (handle) values (h);
+    return null;
+  end if;
+  delete from login_attempts where handle = h;
+  return v_email;
+end;
+$$;
+revoke all on function public.login_email(text, text) from public;
+grant execute on function public.login_email(text, text) to anon, authenticated;

@@ -312,3 +312,7 @@ a.btn{text-decoration:none;color:var(--text)}
 .duel-row span{color:var(--muted);font-size:.85rem}
 .duel-row .vs{font-size:1.4rem;color:var(--muted)}
 .duel-msg{margin-top:8px;font-weight:700}
+
+.forgot{display:block;margin:14px auto 0;color:var(--muted)}
+.email-box{display:flex;flex-direction:column;gap:10px;padding:12px 14px;margin-top:10px}
+.email-box b{color:var(--text)}

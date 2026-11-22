@@ -14,7 +14,7 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,500;9..144,600;9..144,700;9..144,800&family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="style.css?v=18">
+<link rel="stylesheet" href="style.css?v=19">
 </head>
 <body>
 <div id="bgArt"></div><div id="bgShade"></div>
@@ -42,6 +42,7 @@
     </label>
     <div id="loginErr" class="login-err" role="alert"></div>
     <button class="btn primary big" id="loginGo" type="submit">Entrar</button>
+    <button type="button" class="linkbtn forgot hidden" id="forgotLink">Esqueci minha senha</button>
   </form>
 </section>
 
@@ -215,6 +216,10 @@
     <div><div class="muted small">Conectado como</div><b id="accountName"></b></div>
     <button class="btn" id="btnLogout">Sair</button>
   </div>
+  <div class="glass email-box hidden" id="emailBox">
+    <div class="muted small" id="emailStatus"></div>
+    <button class="btn" id="btnEmail">📧 Vincular e-mail</button>
+  </div>
   <button class="btn danger" id="btnReset">Apagar tudo</button>
   <p class="muted small" style="line-height:1.5;margin-top:18px">Seus dados ficam salvos só neste celular. Letras: lrclib.net · Capas: iTunes · Tradução automática: Google Tradutor (corrija tocando em ✎ no cartão).</p>
 </section>
@@ -355,13 +360,50 @@
   </div>
 </div>
 
+<!-- vincular e-mail -->
+<div id="emailSheet" class="sheet-backdrop hidden">
+  <div class="sheet">
+    <div class="sheet-icon">📧</div>
+    <h3>Vincular e-mail</h3>
+    <p class="muted">Opcional. Serve para recuperar a senha se você esquecer. Você continua entrando com seu @usuário. Ninguém vê seu e-mail.</p>
+    <input id="emailInput" class="input" type="email" inputmode="email" autocomplete="email" placeholder="seuemail@exemplo.com">
+    <div id="emailErr" class="login-err" style="margin-top:8px"></div>
+    <button class="btn primary big" id="emailSave">Enviar link de confirmação</button>
+    <button class="btn" data-close-sheet="emailSheet" style="width:100%;margin-top:10px">Agora não</button>
+  </div>
+</div>
+<!-- esqueci a senha -->
+<div id="forgotSheet" class="sheet-backdrop hidden">
+  <div class="sheet">
+    <div class="sheet-icon">🔑</div>
+    <h3>Esqueci minha senha</h3>
+    <p class="muted">Digite o e-mail que você vinculou à sua conta. Vamos mandar um link para criar uma senha nova.</p>
+    <input id="forgotInput" class="input" type="email" inputmode="email" autocomplete="email" placeholder="seuemail@exemplo.com">
+    <div id="forgotErr" class="login-err" style="margin-top:8px"></div>
+    <div id="forgotMsg" class="muted small" style="margin-bottom:12px;line-height:1.5"></div>
+    <button class="btn primary big" id="forgotSend">Enviar link</button>
+    <button class="btn" data-close-sheet="forgotSheet" style="width:100%;margin-top:10px">Voltar</button>
+    <p class="muted small" style="margin-top:12px">Não vinculou e-mail? Aí não tem como recuperar — crie uma conta nova com outro @usuário.</p>
+  </div>
+</div>
+<!-- senha nova (vindo do link do e-mail) -->
+<div id="newPassSheet" class="sheet-backdrop hidden">
+  <div class="sheet">
+    <div class="sheet-icon">🔑</div>
+    <h3>Crie uma senha nova</h3>
+    <input id="newPassInput" class="input" type="password" autocomplete="new-password" placeholder="Senha nova (mínimo 6 caracteres)">
+    <div id="newPassErr" class="login-err" style="margin-top:8px"></div>
+    <button class="btn primary big" id="newPassSave">Salvar senha nova</button>
+  </div>
+</div>
+
 <div id="toast" class="toast hidden"></div>
 <div id="confetti"></div>
 
 <script src="vendor/supabase.js?v=18"></script>
 <script src="config.js?v=18"></script>
 <script src="moderacao.js?v=18"></script>
-<script src="app.js?v=18"></script>
+<script src="app.js?v=19"></script>
 <script src="share.js?v=18"></script>
 <script src="karaoke.js?v=18"></script>
 <script src="social.js?v=18"></script>

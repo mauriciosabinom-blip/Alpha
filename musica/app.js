@@ -925,6 +925,8 @@ let booted = false, authMode = 'signup';
 const toHandle = name => name.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().replace(/[^a-z0-9]/g, '');
 const handleEmail = h => `${h}@usuarios.refrao.app`;
 function getSession() { try { return JSON.parse(localStorage.getItem(AUTH_KEY)); } catch (e) { return null; } }
+const APP_HOME = location.origin + location.pathname.replace(/index\.html$/, '');
+const URL_TYPE = new URLSearchParams(location.hash.slice(1)).get('type'); // links de e-mail: recovery / email_change
 // cliente oficial do Supabase: guarda a sessão e a renova sozinho (senão expiraria em 1 hora)
 const sb = AUTH_ON && window.supabase ? window.supabase.createClient(CFG.supabaseUrl, CFG.supabaseKey, {
   auth: { persistSession: true, storageKey: 'refrao.sb', autoRefreshToken: true, detectSessionInUrl: true }
@@ -938,10 +940,68 @@ async function authSignUp(h, name, pass) {
   return data;
 }
 async function authSignIn(h, pass) {
-  const { data, error } = await sb.auth.signInWithPassword({ email: handleEmail(h), password: pass });
+  let { data, error } = await sb.auth.signInWithPassword({ email: handleEmail(h), password: pass });
+  if (error && /invalid_credentials|invalid login/i.test(error.code + ' ' + error.message)) {
+    // quem vinculou um e-mail real: o servidor devolve esse e-mail só se a senha estiver certa
+    const r = await sb.rpc('login_email', { p_handle: h, p_password: pass });
+    if (r.error && /Muitas tentativas/.test(r.error.message)) throw Object.assign(new Error(r.error.message), { code: 'too_many' });
+    if (r.data && r.data !== handleEmail(h)) ({ data, error } = await sb.auth.signInWithPassword({ email: r.data, password: pass }));
+  }
   if (error) throw authErr(error);
   return data;
 }
+
+/* ---------- e-mail opcional: vincular e recuperar senha ---------- */
+const isRealEmail = e => !!e && !e.endsWith('@usuarios.refrao.app');
+const maskEmail = e => e.replace(/^(.)(.*)(@.*)$/, (_, a, b, c) => a + '•'.repeat(Math.min(5, b.length)) + c);
+async function renderEmailStatus() {
+  if (!sb) return;
+  const { data } = await sb.auth.getUser().catch(() => ({ data: {} }));
+  const u = data?.user; if (!u) { $('emailStatus').textContent = 'Entre de novo para vincular um e-mail.'; return; }
+  $('emailStatus').innerHTML = u.new_email ? `⏳ Confirme pelo link enviado para <b>${esc(maskEmail(u.new_email))}</b>`
+    : isRealEmail(u.email) ? `✅ E-mail vinculado: <b>${esc(maskEmail(u.email))}</b>` : 'Nenhum e-mail vinculado — sem ele não dá para recuperar a senha.';
+  $('btnEmail').textContent = isRealEmail(u.email) ? '📧 Trocar e-mail' : '📧 Vincular e-mail';
+}
+function openSheet(id) { $(id).classList.remove('hidden'); $(id).querySelectorAll('.login-err').forEach(e => e.textContent = ''); }
+const closeSheet = id => $(id).classList.add('hidden');
+$('btnEmail').onclick = () => { $('emailInput').value = ''; openSheet('emailSheet'); };
+$('emailSave').onclick = async () => {
+  const email = $('emailInput').value.trim(), err = $('emailErr');
+  if (!/^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(email)) return err.textContent = 'Digite um e-mail válido.';
+  $('emailSave').disabled = true;
+  const { error } = await sb.auth.updateUser({ email }, { emailRedirectTo: APP_HOME });
+  $('emailSave').disabled = false;
+  if (error) return err.textContent = /already|registered|exists/i.test(error.message) ? 'Esse e-mail já está em outra conta.' : /rate|limit/i.test(error.message) ? 'Muitos e-mails enviados. Tente de novo mais tarde.' : 'Não deu certo: ' + error.message;
+  closeSheet('emailSheet'); toast('📧 Enviamos um link para ' + email + '. Abra e confirme para vincular.', 6000); renderEmailStatus();
+};
+$('forgotLink').onclick = () => { $('forgotInput').value = ''; $('forgotMsg').textContent = ''; openSheet('forgotSheet'); };
+$('forgotSend').onclick = async () => {
+  const email = $('forgotInput').value.trim();
+  if (!/^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(email)) return $('forgotErr').textContent = 'Digite o e-mail que você vinculou à conta.';
+  $('forgotSend').disabled = true;
+  const { error } = await sb.auth.resetPasswordForEmail(email, { redirectTo: APP_HOME });
+  $('forgotSend').disabled = false;
+  if (error && /rate|limit/i.test(error.message)) return $('forgotErr').textContent = 'Muitos pedidos. Espere um pouco e tente de novo.';
+  $('forgotErr').textContent = '';
+  $('forgotMsg').textContent = '📬 Se esse e-mail estiver vinculado a uma conta, você vai receber um link para criar uma senha nova. Confira também o spam.';
+};
+$('newPassSave').onclick = async () => {
+  const pass = $('newPassInput').value, err = $('newPassErr');
+  if (pass.length < 6) return err.textContent = 'A senha precisa ter pelo menos 6 caracteres.';
+  $('newPassSave').disabled = true;
+  const { data, error } = await sb.auth.updateUser({ password: pass });
+  $('newPassSave').disabled = false;
+  if (error) return err.textContent = 'Não deu certo: ' + error.message;
+  closeSheet('newPassSheet'); history.replaceState(null, '', location.pathname);
+  const md = data.user.user_metadata || {};
+  if (!booted && md.handle) { startUser({ handle: md.handle, name: md.name || md.handle, userId: data.user.id, at: Date.now() }); boot(); }
+  toast('🔑 Senha nova salva! Você já está conectado.', 4500);
+};
+document.querySelectorAll('[data-close-sheet]').forEach(b => b.onclick = () => closeSheet(b.dataset.closeSheet));
+if (sb) sb.auth.onAuthStateChange(ev => {
+  if (ev === 'PASSWORD_RECOVERY') { $('newPassInput').value = ''; openSheet('newPassSheet'); }
+});
+if (URL_TYPE === 'email_change') setTimeout(() => { toast('📧 E-mail confirmado e vinculado à sua conta!', 5000); history.replaceState(null, '', location.pathname); }, 1200);
 function startUser(sess) {
   localStorage.setItem(AUTH_KEY, JSON.stringify(sess));
   STORE_KEY = 'refrao.v1:' + sess.handle;
@@ -960,6 +1020,7 @@ function renderLogin() {
   $('loginGo').textContent = up ? 'Criar conta e começar 🎧' : 'Entrar';
   $('loginPass').autocomplete = up ? 'new-password' : 'current-password';
   $('loginErr').textContent = '';
+  $('forgotLink').classList.toggle('hidden', up || !sb);
   updateHandle();
 }
 function updateHandle() {
@@ -989,6 +1050,7 @@ async function submitLogin(e) {
     const c = String(ex.code || '') + ' ' + ex.message;
     if (/already|exists|registered/i.test(c)) err.innerHTML = `O usuário <b>@${esc(h)}</b> já existe. Tente outro, como <b>${esc(h + (Math.floor(Math.random() * 90) + 10))}</b> — ou toque em “Já tenho conta”.`;
     else if (/invalid_credentials|invalid login|invalid_grant/i.test(c)) err.textContent = 'Usuário ou senha incorretos.';
+    else if (/too_many/.test(c)) err.textContent = ex.message;
     else if (/needs_confirm/.test(c)) err.textContent = 'Conta criada, mas o Supabase está pedindo confirmação de e-mail. Desligue "Confirm email" no Supabase.';
     else if (/weak_password/i.test(c)) err.textContent = 'Senha fraca demais. Use pelo menos 6 caracteres.';
     else if (authMode === 'signup' && ex.status === 500) err.textContent = 'Não foi possível criar a conta com esse nome. Escolha outro.';
@@ -1011,7 +1073,8 @@ function boot() {
   S = load();
   const sess = AUTH_ON && getSession();
   $('accountBox').classList.toggle('hidden', !sess);
-  if (sess) $('accountName').textContent = `${sess.name} · @${sess.handle}`;
+  $('emailBox').classList.toggle('hidden', !sess || !sb);
+  if (sess) { $('accountName').textContent = `${sess.name} · @${sess.handle}`; renderEmailStatus(); }
   rollDay();
   show('home');
   if (!Object.keys(S.songs).length) openPick(true);
