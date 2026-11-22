@@ -316,3 +316,6 @@ a.btn{text-decoration:none;color:var(--text)}
 .forgot{display:block;margin:14px auto 0;color:var(--muted)}
 .email-box{display:flex;flex-direction:column;gap:10px;padding:12px 14px;margin-top:10px}
 .email-box b{color:var(--text)}
+
+.push-banner{display:flex;align-items:center;gap:10px;padding:10px 12px;margin-bottom:12px;border-radius:18px;font-size:.9rem;line-height:1.35}
+.push-banner span{flex:1}

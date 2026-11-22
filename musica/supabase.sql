@@ -322,3 +322,65 @@ end;
 $$;
 revoke all on function public.login_email(text, text) from public;
 grant execute on function public.login_email(text, text) to anon, authenticated;
+
+-- ---------- Notificações (push) de mensagem nova ----------
+-- Cada aparelho que ativa as notificações fica registrado aqui (só o dono vê os seus).
+create table if not exists public.push_subscriptions (
+  id bigint generated always as identity primary key,
+  user_id uuid not null references public.profiles (id) on delete cascade,
+  endpoint text not null unique,
+  p256dh text not null,
+  auth text not null,
+  created_at timestamptz not null default now()
+);
+alter table public.push_subscriptions enable row level security;
+revoke all on public.push_subscriptions from anon, authenticated;
+grant select on public.push_subscriptions to authenticated;
+drop policy if exists "ver meus aparelhos" on public.push_subscriptions;
+create policy "ver meus aparelhos" on public.push_subscriptions
+  for select to authenticated using (user_id = auth.uid());
+
+-- registrar / remover o aparelho (o mesmo aparelho pode trocar de conta)
+create or replace function public.save_push_subscription(p_endpoint text, p_p256dh text, p_auth text)
+returns void language plpgsql security definer set search_path = public as $$
+begin
+  if auth.uid() is null then raise exception 'precisa estar logado'; end if;
+  delete from push_subscriptions where endpoint = p_endpoint;
+  insert into push_subscriptions (user_id, endpoint, p256dh, auth) values (auth.uid(), p_endpoint, p_p256dh, p_auth);
+end;
+$$;
+create or replace function public.delete_push_subscription(p_endpoint text)
+returns void language sql security definer set search_path = public as $$
+  delete from push_subscriptions where endpoint = p_endpoint and user_id = auth.uid();
+$$;
+revoke all on function public.save_push_subscription(text, text, text), public.delete_push_subscription(text) from public;
+grant execute on function public.save_push_subscription(text, text, text), public.delete_push_subscription(text) to authenticated;
+
+-- segredos do servidor (ninguém do app acessa): senha interna do gatilho e chaves das notificações
+create table if not exists public.app_secrets (key text primary key, value text not null);
+alter table public.app_secrets enable row level security;
+revoke all on public.app_secrets from anon, authenticated;
+insert into public.app_secrets (key, value)
+  values ('push_secret', replace(gen_random_uuid()::text || gen_random_uuid()::text, '-', ''))
+  on conflict (key) do nothing;
+
+-- a cada mensagem nova, avisa a função "notify" (que manda a notificação para o celular)
+create extension if not exists pg_net with schema extensions;
+create or replace function public.notify_new_message() returns trigger
+language plpgsql security definer set search_path = public, extensions as $$
+declare s text;
+begin
+  select value into s from app_secrets where key = 'push_secret';
+  perform net.http_post(
+    url := 'https://khpterapkxaispzorsav.supabase.co/functions/v1/notify',
+    body := jsonb_build_object('sender', new.sender, 'receiver', new.receiver, 'body', left(new.body, 160)),
+    headers := jsonb_build_object('Content-Type', 'application/json', 'x-refrao-secret', s)
+  );
+  return new;
+exception when others then
+  return new; -- nunca impede a mensagem de ser enviada
+end;
+$$;
+drop trigger if exists messages_push on public.messages;
+create trigger messages_push after insert on public.messages
+  for each row execute procedure public.notify_new_message();

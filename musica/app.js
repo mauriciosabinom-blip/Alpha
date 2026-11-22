@@ -1064,8 +1064,11 @@ $('loginTabs').onclick = e => { const b = e.target.closest('[data-auth]'); if (b
 $('loginEye').onclick = () => { const i = $('loginPass'); i.type = i.type === 'password' ? 'text' : 'password'; $('loginEye').textContent = i.type === 'password' ? '👁' : '🙈'; };
 $('btnLogout').onclick = () => {
   if (!confirm('Sair desta conta? Seu progresso continua salvo neste aparelho.')) return;
-  window.Social?.stop(); localStorage.removeItem(AUTH_KEY);
-  (sb ? sb.auth.signOut().catch(() => {}) : Promise.resolve()).finally(() => location.reload());
+  window.Social?.stop();
+  (window.Push ? Push.forget() : Promise.resolve()).finally(() => {
+    localStorage.removeItem(AUTH_KEY);
+    (sb ? sb.auth.signOut().catch(() => {}) : Promise.resolve()).finally(() => location.reload());
+  });
 };
 
 function boot() {
@@ -1075,6 +1078,7 @@ function boot() {
   $('accountBox').classList.toggle('hidden', !sess);
   $('emailBox').classList.toggle('hidden', !sess || !sb);
   if (sess) { $('accountName').textContent = `${sess.name} · @${sess.handle}`; renderEmailStatus(); }
+  window.Push?.render();
   rollDay();
   show('home');
   if (!Object.keys(S.songs).length) openPick(true);

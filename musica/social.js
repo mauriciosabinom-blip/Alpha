@@ -51,6 +51,7 @@ const Social = (() => {
   function renderBadge() {
     const n = Object.values(unread).reduce((a, b) => a + b, 0) + friendships.filter(f => f.status === 'pending' && f.addressee === me?.id).length;
     const b = $('socialBadge'); b.textContent = n > 9 ? '9+' : n; b.classList.toggle('hidden', !n);
+    try { n ? navigator.setAppBadge?.(n) : navigator.clearAppBadge?.(); } catch (e) {}
   }
 
   /* ---------- tempo real ---------- */
@@ -73,6 +74,7 @@ const Social = (() => {
       chatMsgs.push(m); renderChat(true);
       sb.from('messages').update({ read_at: new Date().toISOString() }).eq('id', m.id).then(() => {});
     } else {
+      window.Push?.chime();
       unread[m.sender] = (unread[m.sender] || 0) + 1; renderBadge();
       if (current === 'social') renderSocial();
       const preview = window.Duet?.isInvite(m.body) ? '🎤 te convidou para cantar junto!' : m.body.slice(0, 60);
@@ -163,7 +165,7 @@ const Social = (() => {
   }
 
   /* ---------- eventos ---------- */
-  $('btnSocial').onclick = () => { show('social'); renderSocial(); if (me) refresh().catch(() => {}); };
+  $('btnSocial').onclick = () => { show('social'); renderSocial(); window.Push?.render(); if (me) refresh().catch(() => {}); };
   $('socialBack').onclick = () => show('home');
   $('socialRelogin').onclick = () => { localStorage.removeItem('refrao.auth'); location.reload(); };
   $('socialSearch').oninput = e => { clearTimeout(searchTimer); searchTimer = setTimeout(() => search(e.target.value), 300); };

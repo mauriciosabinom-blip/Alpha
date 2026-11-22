@@ -14,7 +14,7 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,500;9..144,600;9..144,700;9..144,800&family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="style.css?v=19">
+<link rel="stylesheet" href="style.css?v=20">
 </head>
 <body>
 <div id="bgArt"></div><div id="bgShade"></div>
@@ -59,6 +59,7 @@
     <button class="btn primary" id="socialRelogin" style="width:100%;margin-top:10px">Entrar novamente</button>
   </div>
   <div id="socialOn">
+    <div id="pushBanner" class="push-banner glass hidden"><span id="pushBannerText"></span><button class="btn primary sm" id="pushBannerBtn">🔔 Ativar</button></div>
     <div class="search glass"><input id="socialSearch" type="search" placeholder="🔎 Buscar pelo @usuário" autocomplete="off" autocapitalize="none" spellcheck="false"></div>
     <div id="socialResults" class="plist"></div>
     <div id="socialRequests" class="plist"></div>
@@ -219,6 +220,11 @@
   <div class="glass email-box hidden" id="emailBox">
     <div class="muted small" id="emailStatus"></div>
     <button class="btn" id="btnEmail">📧 Vincular e-mail</button>
+  </div>
+  <div class="glass email-box hidden" id="pushBox">
+    <b>🔔 Avisos de mensagem</b>
+    <div class="muted small" id="pushStatus"></div>
+    <button class="btn" id="pushBtn">🔔 Ativar avisos de mensagem</button>
   </div>
   <button class="btn danger" id="btnReset">Apagar tudo</button>
   <p class="muted small" style="line-height:1.5;margin-top:18px">Seus dados ficam salvos só neste celular. Letras: lrclib.net · Capas: iTunes · Tradução automática: Google Tradutor (corrija tocando em ✎ no cartão).</p>
@@ -403,10 +409,11 @@
 <script src="vendor/supabase.js?v=18"></script>
 <script src="config.js?v=18"></script>
 <script src="moderacao.js?v=18"></script>
-<script src="app.js?v=19"></script>
+<script src="app.js?v=20"></script>
 <script src="share.js?v=18"></script>
 <script src="karaoke.js?v=18"></script>
-<script src="social.js?v=18"></script>
-<script src="duet.js?v=18"></script>
+<script src="social.js?v=20"></script>
+<script src="duet.js?v=20"></script>
+<script src="push.js?v=20"></script>
 </body>
 </html>

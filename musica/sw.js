@@ -1,5 +1,5 @@
 // Service worker: deixa o app abrir mesmo sem internet (o estudo funciona offline).
-const CACHE = 'refrao-v19';
+const CACHE = 'refrao-v20';
 const SHELL = ['./', 'index.html', 'manifest.webmanifest', 'icon.svg', 'icon-192.png', 'icon-512.png'];
 self.addEventListener('install', e => { e.waitUntil(caches.open(CACHE).then(c => c.addAll(SHELL))); self.skipWaiting(); });
 self.addEventListener('activate', e => {
@@ -13,4 +13,34 @@ self.addEventListener('fetch', e => {
   e.respondWith(fetch(e.request, { cache: 'no-cache' }).then(r => {
     const copy = r.clone(); caches.open(CACHE).then(c => c.put(e.request, copy)); return r;
   }).catch(() => caches.match(e.request).then(r => r || caches.match('index.html'))));
+});
+
+// ---------- notificações de mensagem nova (push) ----------
+// O som é o toque padrão do aparelho (o iPhone não deixa app web escolher outro).
+self.addEventListener('push', e => {
+  let d = {};
+  try { d = e.data ? e.data.json() : {}; } catch (err) { d = { body: e.data && e.data.text() }; }
+  e.waitUntil((async () => {
+    await self.registration.showNotification(d.title || '💬 Nova mensagem no Refrão', {
+      body: d.body || '', tag: d.tag, renotify: true, icon: 'icon-192.png', badge: 'icon-192.png', data: { url: d.url || './' }
+    });
+    // número no ícone do app (quando o aparelho permite)
+    try { const n = (await self.registration.getNotifications()).length; if (self.navigator.setAppBadge) await self.navigator.setAppBadge(n); } catch (err) {}
+  })());
+});
+self.addEventListener('notificationclick', e => {
+  e.notification.close();
+  const url = new URL((e.notification.data && e.notification.data.url) || './', self.registration.scope).href;
+  e.waitUntil((async () => {
+    const wins = await clients.matchAll({ type: 'window', includeUncontrolled: true });
+    for (const w of wins) {
+      if (w.url.startsWith(self.registration.scope)) {
+        await w.focus();
+        const chat = new URL(url).searchParams.get('chat');
+        if (chat) w.postMessage({ openChat: chat });
+        return;
+      }
+    }
+    await clients.openWindow(url);
+  })());
 });
