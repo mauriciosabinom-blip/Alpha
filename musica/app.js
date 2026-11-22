@@ -984,6 +984,7 @@ async function submitLogin(e) {
     else if (/invalid_credentials|invalid login|invalid_grant/i.test(c)) err.textContent = 'Usuário ou senha incorretos.';
     else if (/needs_confirm/.test(c)) err.textContent = 'Conta criada, mas o Supabase está pedindo confirmação de e-mail. Desligue "Confirm email" no Supabase.';
     else if (/weak_password/i.test(c)) err.textContent = 'Senha fraca demais. Use pelo menos 6 caracteres.';
+    else if (authMode === 'signup' && ex.status === 500) err.textContent = 'Não foi possível criar a conta com esse nome. Escolha outro.';
     else if (ex instanceof TypeError) err.textContent = 'Sem conexão com a internet. Verifique o Wi-Fi e tente de novo.';
     else err.textContent = 'Não deu certo: ' + ex.message;
   } finally { btn.disabled = false; btn.textContent = label; }
