@@ -1,0 +1,43 @@
+<!doctype html>
+<html lang="pt-br">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Refrão · Permissão</title>
+<style>
+  :root{--bg:#0f0c1a;--text:#f7f4ff;--muted:#b4aecb;--line:rgba(255,255,255,.14);--a:#8b5cf6;--b:#ec4899}
+  body{margin:0;background:var(--bg);color:var(--text);font-family:system-ui,-apple-system,"Segoe UI",Roboto,sans-serif}
+  main{max-width:720px;margin:0 auto;padding:20px 16px}
+  h1{font-size:1.3rem;margin:0 0 8px}
+  ol{color:var(--muted);line-height:1.6;padding-left:20px;margin:0 0 16px}
+  ol b{color:var(--text)}
+  a{color:#f9a8d4}
+  button{width:100%;border:0;border-radius:14px;padding:16px;font-size:1.1rem;font-weight:700;color:#fff;background:linear-gradient(135deg,var(--a),var(--b))}
+  #ok{display:block;text-align:center;margin-top:10px;color:#34d399;font-weight:700;min-height:1.3em}
+  pre{background:rgba(255,255,255,.06);border:1px solid var(--line);border-radius:14px;padding:14px;font-size:.78rem;white-space:pre-wrap;word-break:break-word}
+</style>
+</head>
+<body>
+<main>
+  <h1>Refrão · liberar o servidor das notificações</h1>
+  <ol>
+    <li>Toque em <b>Copiar</b> aqui embaixo.</li>
+    <li>Abra o <a href="https://supabase.com/dashboard/project/khpterapkxaispzorsav/sql/new" target="_blank" rel="noopener">SQL Editor do Supabase</a>.</li>
+    <li>Toque no editor, cole e toque em <b>Run</b>.</li>
+    <li>Em <b>Results</b> deve aparecer <b>servidor_pode_ler = true</b>.</li>
+  </ol>
+  <button id="copy">📋 Copiar</button><span id="ok"></span>
+  <pre id="sql">grant usage on schema public to service_role;
+grant select, insert, update, delete on public.app_secrets, public.push_subscriptions, public.profiles, public.messages, public.friendships, public.karaoke_scores, public.login_attempts, public.blocked_words to service_role;
+grant usage, select on all sequences in schema public to service_role;
+select has_table_privilege('service_role', 'public.app_secrets', 'select') as servidor_pode_ler;</pre>
+</main>
+<script>
+  document.getElementById('copy').onclick = async () => {
+    const t = document.getElementById('sql').textContent, ok = document.getElementById('ok');
+    try { await navigator.clipboard.writeText(t); ok.textContent = '✓ Copiado! Agora cole no SQL Editor.'; }
+    catch (e) { const r = document.createRange(); r.selectNodeContents(document.getElementById('sql')); getSelection().removeAllRanges(); getSelection().addRange(r); ok.textContent = 'Texto selecionado — toque em Copiar no menu.'; }
+  };
+</script>
+</body>
+</html>
