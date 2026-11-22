@@ -9,16 +9,33 @@ import webpush from "npm:web-push@3.6.7";
 import { createClient } from "npm:@supabase/supabase-js@2.118.0";
 
 const APP_URL = "https://mauriciosabinom-blip.github.io/Alpha/musica/";
-// chave de servidor: formato antigo (SUPABASE_SERVICE_ROLE_KEY) ou novo (SUPABASE_SECRET_KEYS = {"default":"sb_secret_..."})
-function serverKey(): string {
-  const legacy = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY");
-  if (legacy) return legacy;
-  const raw = Deno.env.get("SUPABASE_SECRET_KEYS") ?? Deno.env.get("SUPABASE_SECRET_KEY") ?? "";
-  try { const o = JSON.parse(raw); return (o.default ?? Object.values(o)[0]) as string; } catch { return raw; }
+// Chave de servidor: projetos novos têm a nova (SUPABASE_SECRET_KEYS = {"default":"sb_secret_..."})
+// e/ou a antiga (SUPABASE_SERVICE_ROLE_KEY). Testa cada uma e usa a primeira que consegue ler o banco.
+function candidateKeys(): { kind: string; key: string }[] {
+  const out: { kind: string; key: string }[] = [];
+  const raw = Deno.env.get("SUPABASE_SECRET_KEYS") ?? "";
+  try { const o = JSON.parse(raw); for (const [n, v] of Object.entries(o)) if (typeof v === "string" && v) out.push({ kind: "secret:" + n, key: v }); }
+  catch { if (raw) out.push({ kind: "secret", key: raw }); }
+  const one = Deno.env.get("SUPABASE_SECRET_KEY"); if (one) out.push({ kind: "secret_key", key: one });
+  const legacy = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY"); if (legacy) out.push({ kind: "service_role", key: legacy });
+  return out;
 }
-const sb = createClient(Deno.env.get("SUPABASE_URL")!, serverKey(), {
-  auth: { persistSession: false, autoRefreshToken: false },
-});
+const URL_ = Deno.env.get("SUPABASE_URL")!;
+const mk = (key: string) => createClient(URL_, key, { auth: { persistSession: false, autoRefreshToken: false } });
+// deno-lint-ignore no-explicit-any
+let sb: any = null;
+const diag: { kind: string; ok: boolean; error?: string }[] = [];
+async function db() {
+  if (sb) return sb;
+  diag.length = 0;
+  for (const c of candidateKeys()) {
+    const client = mk(c.key);
+    const { error } = await client.from("app_secrets").select("key").limit(1);
+    diag.push({ kind: c.kind, ok: !error, error: error?.message });
+    if (!error) { sb = client; return sb; }
+  }
+  throw new Error("banco: nenhuma chave de servidor conseguiu ler — " + diag.map((d) => `${d.kind}: ${d.error}`).join(" | "));
+}
 const cors = {
   "Access-Control-Allow-Origin": "*",
   "Access-Control-Allow-Headers": "authorization, apikey, content-type, x-refrao-secret",
@@ -28,7 +45,7 @@ const json = (data: unknown, status = 200) =>
   new Response(JSON.stringify(data), { status, headers: { ...cors, "Content-Type": "application/json" } });
 
 async function getSecret(key: string): Promise<string | null> {
-  const { data, error } = await sb.from("app_secrets").select("value").eq("key", key).maybeSingle();
+  const { data, error } = await (await db()).from("app_secrets").select("value").eq("key", key).maybeSingle();
   if (error) throw new Error("banco: " + error.message);
   return data?.value ?? null;
 }
@@ -37,7 +54,7 @@ async function vapidKeys() {
   if (!pub || !priv) {
     const k = webpush.generateVAPIDKeys();
     // "ignoreDuplicates": se duas chamadas criarem ao mesmo tempo, fica a primeira
-    const { error } = await sb.from("app_secrets").upsert(
+    const { error } = await (await db()).from("app_secrets").upsert(
       [{ key: "vapid_public", value: k.publicKey }, { key: "vapid_private", value: k.privateKey }],
       { onConflict: "key", ignoreDuplicates: true },
     );
@@ -49,6 +66,11 @@ async function vapidKeys() {
 
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return new Response("ok", { headers: cors });
+  // diagnóstico: só mostra o TIPO de cada chave e se funcionou (nunca o valor)
+  if (req.method === "GET" && new URL(req.url).searchParams.has("diag")) {
+    try { await db(); } catch { /* o resultado fica em diag */ }
+    return json({ keys: diag, env: candidateKeys().map((c) => c.kind) });
+  }
   try {
     const { pub, priv } = await vapidKeys();
     // o app pede a chave pública para registrar o aparelho
@@ -58,8 +80,9 @@ Deno.serve(async (req) => {
     const secret = await getSecret("push_secret");
     if (!secret || req.headers.get("x-refrao-secret") !== secret) return json({ error: "forbidden" }, 403);
     const m = await req.json() as { sender: string; receiver: string; body: string };
+    const sb = await db();
     const [{ data: subs }, { data: prof }] = await Promise.all([
-      sb.from("push_subscriptions").select("id, endpoint, p256dh, auth").eq("user_id", m.receiver).then((r) => { if (r.error) throw new Error("banco: " + r.error.message); return r; }),
+      sb.from("push_subscriptions").select("id, endpoint, p256dh, auth").eq("user_id", m.receiver).then((r: { error: { message: string } | null }) => { if (r.error) throw new Error("banco: " + r.error.message); return r; }),
       sb.from("profiles").select("handle").eq("id", m.sender).maybeSingle(),
     ]);
     if (!subs?.length) return json({ sent: 0 });
