@@ -277,3 +277,15 @@ revoke update on public.messages, public.friendships, public.profiles from anon,
 grant update (read_at) on public.messages to authenticated;
 grant update (status) on public.friendships to authenticated;
 grant update (name) on public.profiles to authenticated;
+
+-- ---------- Acesso do app às tabelas (funciona mesmo com "Grant API access" desmarcado) ----------
+grant usage on schema public to authenticated;
+grant select on public.profiles to authenticated;
+grant select, insert, delete on public.friendships to authenticated;
+grant select, insert on public.messages to authenticated;
+grant select, insert on public.karaoke_scores to authenticated;
+grant usage, select on all sequences in schema public to authenticated;
+grant execute on function public.has_blocked_words(text), public.has_link(text), public.squeeze(text), public.norm_text(text) to authenticated;
+-- visitantes sem login não acessam nada; a lista de palavras bloqueadas fica invisível para todos
+revoke all on public.profiles, public.friendships, public.messages, public.karaoke_scores, public.blocked_words from anon;
+revoke all on public.blocked_words from authenticated;
