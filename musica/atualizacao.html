@@ -1,0 +1,144 @@
+<!doctype html>
+<html lang="pt-br">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Refrão · Atualização</title>
+<style>
+  :root{--bg:#0f0c1a;--text:#f7f4ff;--muted:#b4aecb;--line:rgba(255,255,255,.14);--a:#8b5cf6;--b:#ec4899}
+  body{margin:0;background:var(--bg);color:var(--text);font-family:system-ui,-apple-system,"Segoe UI",Roboto,sans-serif}
+  main{max-width:720px;margin:0 auto;padding:20px 16px}
+  h1{font-size:1.3rem;margin:0 0 8px}
+  ol{color:var(--muted);line-height:1.6;padding-left:20px;margin:0 0 16px}
+  ol b{color:var(--text)}
+  a{color:#f9a8d4}
+  button{width:100%;border:0;border-radius:14px;padding:16px;font-size:1.1rem;font-weight:700;color:#fff;background:linear-gradient(135deg,var(--a),var(--b))}
+  #ok{display:block;text-align:center;margin-top:10px;color:#34d399;font-weight:700;min-height:1.3em}
+  pre{background:rgba(255,255,255,.06);border:1px solid var(--line);border-radius:14px;padding:14px;font-size:.78rem;white-space:pre-wrap;word-break:break-word}
+</style>
+</head>
+<body>
+<main>
+  <h1>Refrão · ativar áudio, figurinhas, GIFs e perfil</h1>
+  <ol>
+    <li>Toque em <b>Copiar</b> aqui embaixo.</li>
+    <li>Abra o <a href="https://supabase.com/dashboard/project/khpterapkxaispzorsav/sql/new" target="_blank" rel="noopener">SQL Editor do Supabase</a>.</li>
+    <li>Toque no editor, cole e toque em <b>Run</b>.</li>
+    <li>Em <b>Results</b> deve aparecer <b>chat e perfil ativados</b>. Se aparecer erro em vermelho, tire um print.</li>
+  </ol>
+  <button id="copy">📋 Copiar</button><span id="ok"></span>
+  <pre id="sql">-- ---------- Chat: áudio, figurinhas e GIFs ----------
+-- kind: &#x27;text&#x27; (padrão) | &#x27;audio&#x27; | &#x27;sticker&#x27; | &#x27;gif&#x27;; media: arquivo do áudio ou endereço da figurinha/GIF
+alter table public.messages add column if not exists kind text not null default &#x27;text&#x27;;
+alter table public.messages add column if not exists media text;
+alter table public.messages add column if not exists duration real;
+do $$ begin
+  alter table public.messages add constraint messages_kind_chk check (kind in (&#x27;text&#x27;, &#x27;audio&#x27;, &#x27;sticker&#x27;, &#x27;gif&#x27;));
+exception when duplicate_object then null; end $$;
+
+-- validação no servidor: só aceita mídia de origens conhecidas (sem links soltos, sem arquivos de fora)
+create or replace function public.moderate_message() returns trigger language plpgsql as $$
+begin
+  if has_link(new.body) then raise exception &#x27;Links não são permitidos no chat.&#x27; using errcode = &#x27;P0001&#x27;, hint = &#x27;link&#x27;; end if;
+  if has_blocked_words(new.body) then raise exception &#x27;Mensagem bloqueada: linguagem imprópria.&#x27; using errcode = &#x27;P0001&#x27;, hint = &#x27;palavrao&#x27;; end if;
+  if coalesce(new.kind, &#x27;text&#x27;) = &#x27;text&#x27; then
+    if new.media is not null then raise exception &#x27;Mensagem inválida.&#x27; using errcode = &#x27;P0001&#x27;; end if;
+  elsif new.kind = &#x27;audio&#x27; then
+    if new.media is null or new.media !~ (&#x27;^&#x27; || new.sender::text || &#x27;/[a-z0-9-]{8,64}\.(m4a|mp4|aac|webm|ogg|mp3)$&#x27;)
+       or coalesce(new.duration, 0) &lt;= 0 or new.duration &gt; 125 then
+      raise exception &#x27;Áudio inválido.&#x27; using errcode = &#x27;P0001&#x27;;
+    end if;
+  elsif new.kind = &#x27;sticker&#x27; then
+    if new.media is null or new.media !~ &#x27;^https://fonts\.gstatic\.com/s/e/notoemoji/latest/[0-9a-f_]{2,60}/512\.(webp|gif)$&#x27; then
+      raise exception &#x27;Figurinha inválida.&#x27; using errcode = &#x27;P0001&#x27;;
+    end if;
+  elsif new.kind = &#x27;gif&#x27; then
+    if new.media is null or new.media !~ &#x27;^https://media[0-9]?\.giphy\.com/media/[A-Za-z0-9]{5,40}/[a-z0-9_]{1,40}\.(gif|webp|mp4)$&#x27; then
+      raise exception &#x27;GIF inválido.&#x27; using errcode = &#x27;P0001&#x27;;
+    end if;
+  end if;
+  return new;
+end;
+$$;
+drop trigger if exists messages_moderation on public.messages;
+create trigger messages_moderation before insert or update of body, kind, media on public.messages
+  for each row execute procedure public.moderate_message();
+
+-- arquivos de áudio: privados; só quem mandou e quem recebeu podem ouvir
+insert into storage.buckets (id, name, public, file_size_limit, allowed_mime_types)
+values (&#x27;audios&#x27;, &#x27;audios&#x27;, false, 5242880, array[&#x27;audio/mp4&#x27;, &#x27;audio/aac&#x27;, &#x27;audio/x-m4a&#x27;, &#x27;audio/webm&#x27;, &#x27;audio/ogg&#x27;, &#x27;audio/mpeg&#x27;])
+on conflict (id) do update set public = false, file_size_limit = excluded.file_size_limit, allowed_mime_types = excluded.allowed_mime_types;
+drop policy if exists &quot;refrao enviar meu audio&quot; on storage.objects;
+create policy &quot;refrao enviar meu audio&quot; on storage.objects for insert to authenticated
+  with check (bucket_id = &#x27;audios&#x27; and (storage.foldername(name))[1] = auth.uid()::text);
+drop policy if exists &quot;refrao ouvir audios da conversa&quot; on storage.objects;
+create policy &quot;refrao ouvir audios da conversa&quot; on storage.objects for select to authenticated
+  using (bucket_id = &#x27;audios&#x27; and (
+    (storage.foldername(name))[1] = auth.uid()::text
+    or exists (select 1 from public.messages m where m.kind = &#x27;audio&#x27; and m.media = storage.objects.name and auth.uid() in (m.sender, m.receiver))
+  ));
+
+-- ---------- Perfil: recado, avatar e &quot;estudando agora&quot; ----------
+alter table public.profiles add column if not exists bio text;
+alter table public.profiles add column if not exists avatar jsonb;
+alter table public.profiles add column if not exists now_playing text;
+do $$ begin
+  alter table public.profiles add constraint profiles_bio_len check (char_length(bio) &lt;= 80);
+exception when duplicate_object then null; end $$;
+do $$ begin
+  alter table public.profiles add constraint profiles_np_len check (char_length(now_playing) &lt;= 120);
+exception when duplicate_object then null; end $$;
+
+create or replace function public.moderate_profile() returns trigger language plpgsql as $$
+begin
+  if has_blocked_words(new.name) or has_blocked_words(new.handle) or has_blocked_words(new.bio) or has_blocked_words(new.now_playing) then
+    raise exception &#x27;Nome ou recado com palavras não permitidas.&#x27; using errcode = &#x27;P0001&#x27;, hint = &#x27;palavrao&#x27;;
+  end if;
+  if has_link(new.bio) then raise exception &#x27;Links não são permitidos no perfil.&#x27; using errcode = &#x27;P0001&#x27;, hint = &#x27;link&#x27;; end if;
+  -- avatar: só os campos conhecidos; a foto precisa ser a da própria pessoa
+  if new.avatar is not null then
+    if jsonb_typeof(new.avatar) &lt;&gt; &#x27;object&#x27; or pg_column_size(new.avatar) &gt; 600
+       or (new.avatar ? &#x27;photo&#x27; and new.avatar-&gt;&gt;&#x27;photo&#x27; is not null and new.avatar-&gt;&gt;&#x27;photo&#x27; &lt;&gt; new.id::text || &#x27;/avatar.jpg&#x27;) then
+      raise exception &#x27;Avatar inválido.&#x27; using errcode = &#x27;P0001&#x27;;
+    end if;
+  end if;
+  return new;
+end;
+$$;
+grant update (name, bio, avatar, now_playing) on public.profiles to authenticated;
+
+-- fotos de perfil: privadas — só a própria pessoa e os amigos dela veem
+insert into storage.buckets (id, name, public, file_size_limit, allowed_mime_types)
+values (&#x27;avatars&#x27;, &#x27;avatars&#x27;, false, 1048576, array[&#x27;image/jpeg&#x27;, &#x27;image/png&#x27;, &#x27;image/webp&#x27;])
+on conflict (id) do update set public = false, file_size_limit = excluded.file_size_limit, allowed_mime_types = excluded.allowed_mime_types;
+drop policy if exists &quot;refrao enviar minha foto&quot; on storage.objects;
+create policy &quot;refrao enviar minha foto&quot; on storage.objects for insert to authenticated
+  with check (bucket_id = &#x27;avatars&#x27; and name = auth.uid()::text || &#x27;/avatar.jpg&#x27;);
+drop policy if exists &quot;refrao trocar minha foto&quot; on storage.objects;
+create policy &quot;refrao trocar minha foto&quot; on storage.objects for update to authenticated
+  using (bucket_id = &#x27;avatars&#x27; and name = auth.uid()::text || &#x27;/avatar.jpg&#x27;)
+  with check (bucket_id = &#x27;avatars&#x27; and name = auth.uid()::text || &#x27;/avatar.jpg&#x27;);
+drop policy if exists &quot;refrao apagar minha foto&quot; on storage.objects;
+create policy &quot;refrao apagar minha foto&quot; on storage.objects for delete to authenticated
+  using (bucket_id = &#x27;avatars&#x27; and name = auth.uid()::text || &#x27;/avatar.jpg&#x27;);
+drop policy if exists &quot;refrao ver foto de amigos&quot; on storage.objects;
+create policy &quot;refrao ver foto de amigos&quot; on storage.objects for select to authenticated
+  using (bucket_id = &#x27;avatars&#x27; and (
+    name = auth.uid()::text || &#x27;/avatar.jpg&#x27;
+    or exists (select 1 from public.friendships f where f.status = &#x27;accepted&#x27;
+      and ((f.requester = auth.uid() and f.addressee::text = (storage.foldername(name))[1])
+        or (f.addressee = auth.uid() and f.requester::text = (storage.foldername(name))[1])))
+  ));
+
+select &#x27;chat e perfil ativados&#x27; as resultado;
+</pre>
+</main>
+<script>
+  document.getElementById('copy').onclick = async () => {
+    const t = document.getElementById('sql').textContent, ok = document.getElementById('ok');
+    try { await navigator.clipboard.writeText(t); ok.textContent = '✓ Copiado! Agora cole no SQL Editor.'; }
+    catch (e) { const r = document.createRange(); r.selectNodeContents(document.getElementById('sql')); getSelection().removeAllRanges(); getSelection().addRange(r); ok.textContent = 'Texto selecionado — toque em Copiar no menu.'; }
+  };
+</script>
+</body>
+</html>
