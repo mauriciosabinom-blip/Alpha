@@ -10,7 +10,9 @@
 }
 *{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
 html,body{margin:0;overflow-x:clip;max-width:100%;background:var(--bg);color:var(--text);font-family:var(--sans);font-size:16px}
-body{min-height:100dvh;overscroll-behavior:none;overflow-x:hidden}
+body{min-height:100dvh;overflow-x:clip}
+/* trava o 'puxar para atualizar' sem impedir a rolagem pelo toque (no Android, overflow-x:hidden no body travava tudo) */
+html{overscroll-behavior-y:none}
 button,input,select,textarea{font:inherit;color:inherit}
 .hidden{display:none!important}
 .muted{color:var(--muted)} .small{font-size:.85rem} .center{text-align:center}
@@ -412,3 +414,17 @@ body:has(.sheet-backdrop:not(.hidden)) .toast{bottom:auto;top:max(70px,calc(env(
 
 /* menu ⋯ da conversa por cima das mensagens */
 #chat > .chat-top{z-index:6}
+
+/* ---------- salvar perfil sempre visível ---------- */
+.save-bar{position:sticky;bottom:0;z-index:5;padding:12px 0 max(12px,env(safe-area-inset-bottom));margin-top:14px;background:linear-gradient(transparent,var(--bg) 35%)}
+/* ---------- editor de recorte da foto ---------- */
+.crop-backdrop{align-items:center;z-index:45}
+.sheet.crop{border-radius:28px;max-width:420px;margin:0 12px}
+.crop-stage{position:relative;width:min(78vw,300px);aspect-ratio:1;margin:8px auto 14px;border-radius:20px;overflow:hidden;background:#000}
+.crop-stage canvas{width:100%;height:100%;display:block;touch-action:none;cursor:grab}
+.crop-ring{position:absolute;inset:0;pointer-events:none;background:radial-gradient(circle at center,transparent 0 69.5%,rgba(0,0,0,.6) 70%);box-shadow:inset 0 0 0 2px rgba(255,255,255,.15)}
+.crop-ring::after{content:"";position:absolute;inset:0;border-radius:50%;border:2px solid rgba(255,255,255,.85);margin:0}
+.crop-zoom{display:flex;align-items:center;gap:10px;margin:0 4px 6px}
+.crop-zoom input{flex:1;accent-color:var(--accent2)}
+/* links em forma de texto (ex.: "Esqueci minha senha", "Remover foto") */
+.linkbtn{background:none;border:0;padding:6px 4px;color:var(--muted);text-decoration:underline;text-underline-offset:3px;font-size:.9rem;cursor:pointer}

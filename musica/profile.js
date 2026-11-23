@@ -88,20 +88,72 @@ const Profile = (() => {
   $('profPhotoBtn').onclick = () => $('profPhotoFile').click();
   $('profPhotoFile').onchange = async e => {
     const f = e.target.files[0]; e.target.value = ''; if (!f) return;
-    try {
-      const img = await createImageBitmap(f), s = Math.min(img.width, img.height);
-      const c = document.createElement('canvas'); c.width = c.height = 400;
-      c.getContext('2d').drawImage(img, (img.width - s) / 2, (img.height - s) / 2, s, s, 0, 0, 400, 400);
-      const blob = await new Promise(r => c.toBlob(r, 'image/jpeg', 0.85));
-      toast('Enviando foto…', 1500);
-      const path = `${mine.id}/avatar.jpg`;
-      const up = await sb.storage.from('avatars').upload(path, blob, { contentType: 'image/jpeg', upsert: true });
-      if (up.error) return toast(/bucket|not found/i.test(up.error.message) ? 'A foto de perfil ainda não foi ativada no servidor.' : 'Não consegui enviar a foto.', 4500);
-      draft.avatar.photo = path; draft.avatar.v = String(Date.now());
-      photoUrls[path + draft.avatar.v] = URL.createObjectURL(blob);
-      renderEditor(); toast('📷 Foto pronta! Só seus amigos veem — os outros veem seu avatar.', 4500);
-    } catch (err) { toast('Não consegui usar essa foto. Tente outra.'); }
+    let bmp;
+    try { bmp = await createImageBitmap(f, { imageOrientation: 'from-image' }); } catch (err) { try { bmp = await createImageBitmap(f); } catch (e2) { return toast('Não consegui abrir essa foto. Tente outra.'); } }
+    Crop.open(bmp, uploadPhoto);
   };
+  async function uploadPhoto(blob) {
+    toast('Enviando foto…', 1500);
+    const path = `${mine.id}/avatar.jpg`;
+    const up = await sb.storage.from('avatars').upload(path, blob, { contentType: 'image/jpeg', upsert: true });
+    if (up.error) return toast(/bucket|not found/i.test(up.error.message) ? 'A foto de perfil ainda não foi ativada no servidor.' : 'Não consegui enviar a foto.', 4500);
+    draft.avatar.photo = path; draft.avatar.v = String(Date.now());
+    photoUrls[path + draft.avatar.v] = URL.createObjectURL(blob);
+    renderEditor(); toast('📷 Foto pronta! Toque em Salvar. Só seus amigos veem — os outros veem seu avatar.', 5000);
+  }
+
+  /* ---------- editor de recorte da foto: arrastar, pinça/zoom, girar ---------- */
+  const Crop = (() => {
+    const cv = $('cropCanvas'), zoomEl = $('cropZoom');
+    let img = null, done = null, rot = 0, zoom = 1, tx = 0, ty = 0, V = 300;
+    const pts = new Map(); let lastDist = 0, lastMid = null;
+    const dims = () => (rot % 180 ? [img.height, img.width] : [img.width, img.height]);
+    const base = () => { const [w, h] = dims(); return V / Math.min(w, h); };
+    function clamp() {
+      const [w, h] = dims(), s = base() * zoom, mx = Math.max(0, (w * s - V) / 2), my = Math.max(0, (h * s - V) / 2);
+      tx = Math.max(-mx, Math.min(mx, tx)); ty = Math.max(-my, Math.min(my, ty));
+    }
+    function draw(ctx, size) {
+      const k = size / V, s = base() * zoom * k;
+      ctx.save(); ctx.fillStyle = '#000'; ctx.fillRect(0, 0, size, size);
+      ctx.translate(size / 2 + tx * k, size / 2 + ty * k); ctx.rotate(rot * Math.PI / 180); ctx.scale(s, s);
+      ctx.drawImage(img, -img.width / 2, -img.height / 2); ctx.restore();
+    }
+    function render() {
+      const dpr = Math.min(3, devicePixelRatio || 1); V = cv.clientWidth || 300;
+      cv.width = cv.height = Math.round(V * dpr);
+      clamp(); draw(cv.getContext('2d'), cv.width);
+      zoomEl.value = zoom;
+    }
+    cv.addEventListener('pointerdown', e => { cv.setPointerCapture(e.pointerId); pts.set(e.pointerId, [e.clientX, e.clientY]); lastDist = 0; lastMid = null; });
+    cv.addEventListener('pointermove', e => {
+      if (!pts.has(e.pointerId)) return;
+      const prev = pts.get(e.pointerId); pts.set(e.pointerId, [e.clientX, e.clientY]);
+      if (pts.size === 1) { tx += e.clientX - prev[0]; ty += e.clientY - prev[1]; }
+      else if (pts.size === 2) {           // pinça com dois dedos: zoom + mover
+        const [a, b] = [...pts.values()], d = Math.hypot(a[0] - b[0], a[1] - b[1]), mid = [(a[0] + b[0]) / 2, (a[1] + b[1]) / 2];
+        if (lastDist) zoom = Math.max(1, Math.min(5, zoom * d / lastDist));
+        if (lastMid) { tx += mid[0] - lastMid[0]; ty += mid[1] - lastMid[1]; }
+        lastDist = d; lastMid = mid;
+      }
+      render();
+    });
+    const up = e => { pts.delete(e.pointerId); lastDist = 0; lastMid = null; };
+    cv.addEventListener('pointerup', up); cv.addEventListener('pointercancel', up);
+    cv.addEventListener('wheel', e => { e.preventDefault(); zoom = Math.max(1, Math.min(5, zoom * (e.deltaY < 0 ? 1.08 : 0.93))); render(); }, { passive: false });
+    zoomEl.oninput = () => { zoom = +zoomEl.value; render(); };
+    $('cropRotate').onclick = () => { rot = (rot + 90) % 360; tx = ty = 0; render(); };
+    $('cropReset').onclick = () => { rot = 0; zoom = 1; tx = ty = 0; render(); };
+    $('cropCancel').onclick = () => { $('cropSheet').classList.add('hidden'); img = null; };
+    $('cropOk').onclick = async () => {
+      const out = document.createElement('canvas'); out.width = out.height = 400;
+      draw(out.getContext('2d'), 400);
+      const blob = await new Promise(r => out.toBlob(r, 'image/jpeg', 0.88));
+      $('cropSheet').classList.add('hidden'); img = null;
+      done && done(blob);
+    };
+    return { open(bmp, cb) { img = bmp; done = cb; rot = 0; zoom = 1; tx = ty = 0; $('cropSheet').classList.remove('hidden'); requestAnimationFrame(render); } };
+  })();
   $('profPhotoDel').onclick = async () => {
     await sb.storage.from('avatars').remove([`${mine.id}/avatar.jpg`]).catch(() => {});
     draft.avatar.photo = null; renderEditor();
@@ -119,6 +171,7 @@ const Profile = (() => {
     toast('✅ Perfil salvo!'); window.Social?.refreshMe?.(); show('social'); window.Social?.refresh?.();
   };
   $('profBack').onclick = () => show('social');
+  $('profSaveTop').onclick = () => $('profSave').click();
   $('btnProfileSet').onclick = open;
 
   // "estudando agora": a música ativa, se a pessoa deixar

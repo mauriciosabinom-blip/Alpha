@@ -14,7 +14,7 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,500;9..144,600;9..144,700;9..144,800&family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="style.css?v=23">
+<link rel="stylesheet" href="style.css?v=24">
 </head>
 <body>
 <div id="bgArt"></div><div id="bgShade"></div>
@@ -74,7 +74,7 @@
   <header class="topbar">
     <button class="icon-btn" id="profBack" aria-label="Voltar">←</button>
     <div class="brand" style="font-size:1.15rem">Meu perfil</div>
-    <span style="width:44px"></span>
+    <button class="btn primary sm" id="profSaveTop">Salvar</button>
   </header>
   <div class="prof-top">
     <div id="profPreview" class="prof-preview"></div>
@@ -96,7 +96,7 @@
   <label class="field">Recado <span class="muted small">(até 80 letras)</span><input id="profBio" class="input" maxlength="80" placeholder="Ex.: Aprendendo inglês cantando 🎶"></label>
   <label class="field check glass"><input type="checkbox" id="profSong"> Mostrar a música que estou estudando 🎵</label>
   <div id="profErr" class="login-err"></div>
-  <button class="btn primary big" id="profSave">Salvar perfil</button>
+  <div class="save-bar"><button class="btn primary big" id="profSave">Salvar perfil</button></div>
 </section>
 
 <!-- ===== CONVERSA ===== -->
@@ -114,7 +114,7 @@
   <div id="chatList" class="chat-list"></div>
   <div id="chatWarn" class="chat-warn"></div>
   <div id="emojiPanel" class="emoji-panel glass hidden">
-    <div id="emojiTabs" class="emoji-tabs"><button data-tab="emo" class="on">😊 Emojis</button><button data-tab="stk">🧩 Figurinhas</button><button data-tab="gif">🎞 GIFs</button></div>
+    <div id="emojiTabs" class="emoji-tabs"><button data-tab="emo" class="on">😊 Emojis</button><button data-tab="stk">🧩 Figurinhas</button></div>
     <div id="gifSearchBox" class="hidden"><input id="gifSearch" class="input" placeholder="🔎 Buscar GIF…" autocomplete="off"></div>
     <div id="emojiGrid" class="emoji-grid"></div>
   </div>
@@ -488,6 +488,18 @@
   </div>
 </div>
 
+<!-- ajustar a foto de perfil -->
+<div id="cropSheet" class="sheet-backdrop crop-backdrop hidden">
+  <div class="sheet crop">
+    <h3>Ajuste sua foto</h3>
+    <p class="muted small">Arraste para enquadrar · use dois dedos (ou a barra) para aproximar</p>
+    <div class="crop-stage"><canvas id="cropCanvas"></canvas><div class="crop-ring"></div></div>
+    <div class="crop-zoom"><span>➖</span><input type="range" id="cropZoom" min="1" max="5" step="0.01" value="1" aria-label="Zoom"><span>➕</span></div>
+    <div class="row"><button class="btn" id="cropRotate">↻ Girar</button><button class="btn" id="cropReset">⟲ Recomeçar</button></div>
+    <div class="row"><button class="btn" id="cropCancel">Cancelar</button><button class="btn primary" id="cropOk">✓ Usar foto</button></div>
+  </div>
+</div>
+
 <!-- perfil de um amigo -->
 <div id="viewSheet" class="sheet-backdrop hidden">
   <div class="sheet">
@@ -515,6 +527,6 @@
 <script src="push.js?v=23"></script>
 <script src="sync.js?v=22"></script>
 <script src="chatplus.js?v=23"></script>
-<script src="profile.js?v=22"></script>
+<script src="profile.js?v=24"></script>
 </body>
 </html>
