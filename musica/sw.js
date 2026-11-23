@@ -1,5 +1,5 @@
 // Service worker: deixa o app abrir mesmo sem internet (o estudo funciona offline).
-const CACHE = 'refrao-v21';
+const CACHE = 'refrao-v22';
 const SHELL = ['./', 'index.html', 'manifest.webmanifest', 'icon.svg', 'icon-192.png', 'icon-512.png'];
 self.addEventListener('install', e => { e.waitUntil(caches.open(CACHE).then(c => c.addAll(SHELL))); self.skipWaiting(); });
 self.addEventListener('activate', e => {
@@ -22,7 +22,9 @@ self.addEventListener('push', e => {
   try { d = e.data ? e.data.json() : {}; } catch (err) { d = { body: e.data && e.data.text() }; }
   e.waitUntil((async () => {
     await self.registration.showNotification(d.title || '💬 Nova mensagem no Refrão', {
-      body: d.body || '', tag: d.tag, renotify: true, icon: 'icon-192.png', badge: 'icon-192.png', data: { url: d.url || './' }
+      body: d.body || '', tag: d.tag, renotify: true, icon: 'icon-192.png', badge: 'icon-192.png', data: { url: d.url || './' },
+      requireInteraction: true,                 // fica na tela até a pessoa ver (onde o aparelho permitir)
+      vibrate: [300, 150, 300, 150, 600]        // vibração longa (Android; o iPhone usa a dele)
     });
     // número no ícone do app (quando o aparelho permite)
     try { const n = (await self.registration.getNotifications()).length; if (self.navigator.setAppBadge) await self.navigator.setAppBadge(n); } catch (err) {}

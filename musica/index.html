@@ -14,7 +14,7 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,500;9..144,600;9..144,700;9..144,800&family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="style.css?v=21">
+<link rel="stylesheet" href="style.css?v=22">
 </head>
 <body>
 <div id="bgArt"></div><div id="bgShade"></div>
@@ -51,7 +51,7 @@
   <header class="topbar">
     <button class="icon-btn" id="socialBack" aria-label="Voltar">←</button>
     <div class="brand" style="font-size:1.15rem">Amigos e conversas</div>
-    <span style="width:44px"></span>
+    <button class="icon-btn" id="btnLook" aria-label="Aparência do chat">🎨</button>
   </header>
   <div id="socialMe" class="me-card"></div>
   <div id="socialOff" class="tip glass hidden">
@@ -69,6 +69,36 @@
   </div>
 </section>
 
+<!-- ===== MEU PERFIL ===== -->
+<section id="profile" class="screen hidden">
+  <header class="topbar">
+    <button class="icon-btn" id="profBack" aria-label="Voltar">←</button>
+    <div class="brand" style="font-size:1.15rem">Meu perfil</div>
+    <span style="width:44px"></span>
+  </header>
+  <div class="prof-top">
+    <div id="profPreview" class="prof-preview"></div>
+    <div class="muted small" id="profHandle"></div>
+    <div class="row" style="max-width:340px;margin:10px auto 0">
+      <button class="btn" id="profRandom">🎲 Surpresa</button>
+      <button class="btn" id="profPhotoBtn">📷 Usar uma foto</button>
+    </div>
+    <button class="linkbtn hidden" id="profPhotoDel" style="margin-top:6px">Remover foto e usar o avatar</button>
+    <input type="file" id="profPhotoFile" accept="image/*" hidden>
+    <p class="muted small" style="margin:8px 0 0">🔒 A foto só aparece para seus amigos. Os outros veem seu avatar.</p>
+  </div>
+  <h4 class="prof-h">Personagem</h4><div id="profChars" class="picks"></div>
+  <h4 class="prof-h">Cor de fundo</h4><div id="profBgs" class="swatches round"></div>
+  <h4 class="prof-h">Aro</h4><div id="profRings" class="chips"></div>
+  <h4 class="prof-h">Acessório</h4><div id="profAccs" class="picks small"></div>
+  <h4 class="prof-h">Sobre você</h4>
+  <label class="field">Nome<input id="profName" class="input" maxlength="30"></label>
+  <label class="field">Recado <span class="muted small">(até 80 letras)</span><input id="profBio" class="input" maxlength="80" placeholder="Ex.: Aprendendo inglês cantando 🎶"></label>
+  <label class="field check glass"><input type="checkbox" id="profSong"> Mostrar a música que estou estudando 🎵</label>
+  <div id="profErr" class="login-err"></div>
+  <button class="btn primary big" id="profSave">Salvar perfil</button>
+</section>
+
 <!-- ===== CONVERSA ===== -->
 <section id="chat" class="screen hidden chat-screen">
   <header class="topbar chat-top">
@@ -77,14 +107,27 @@
     <button class="icon-btn" id="chatMenu" aria-label="Mais opções">⋯</button>
     <div id="chatMenuBox" class="menu glass hidden">
       <button id="chatDuet">🎤 Cantar juntos</button>
+      <button id="chatLook">🎨 Aparência do chat</button>
       <button id="chatUnfriend" class="danger-text">Desfazer amizade</button>
     </div>
   </header>
   <div id="chatList" class="chat-list"></div>
   <div id="chatWarn" class="chat-warn"></div>
+  <div id="emojiPanel" class="emoji-panel glass hidden">
+    <div id="emojiTabs" class="emoji-tabs"><button data-tab="emo" class="on">😊 Emojis</button><button data-tab="stk">🧩 Figurinhas</button><button data-tab="gif">🎞 GIFs</button></div>
+    <div id="gifSearchBox" class="hidden"><input id="gifSearch" class="input" placeholder="🔎 Buscar GIF…" autocomplete="off"></div>
+    <div id="emojiGrid" class="emoji-grid"></div>
+  </div>
+  <div id="recBar" class="rec-bar glass hidden">
+    <button type="button" class="icon-btn" id="recCancel" aria-label="Cancelar">🗑</button>
+    <span class="rec-dot"></span><span id="recTime">0:00</span><span class="muted small">gravando…</span>
+    <button type="button" class="btn primary" id="recSend" aria-label="Enviar áudio">➤</button>
+  </div>
   <form id="chatForm" class="chat-form glass">
-    <input id="chatInput" placeholder="Escreva uma mensagem…" maxlength="1000" autocomplete="off" enterkeyhint="send">
-    <button class="btn primary" type="submit" aria-label="Enviar">➤</button>
+    <button type="button" class="icon-btn" id="btnEmoji" aria-label="Emojis, figurinhas e GIFs">😊</button>
+    <input id="chatInput" placeholder="Mensagem" maxlength="1000" autocomplete="off" enterkeyhint="send">
+    <button type="button" class="btn primary" id="btnMic" aria-label="Gravar áudio">🎙</button>
+    <button class="btn primary hidden" type="submit" id="chatSend" aria-label="Enviar">➤</button>
   </form>
 </section>
 
@@ -221,6 +264,7 @@
     <div class="muted small" id="emailStatus"></div>
     <button class="btn" id="btnEmail">📧 Vincular e-mail</button>
   </div>
+  <button class="btn" id="btnProfileSet" style="width:100%;margin-top:10px">👤 Meu perfil e avatar</button>
   <div class="glass email-box hidden" id="pushBox">
     <b>🔔 Avisos de mensagem</b>
     <div class="muted small" id="pushStatus"></div>
@@ -419,18 +463,53 @@
   </div>
 </div>
 
+<!-- aparência do chat -->
+<div id="lookSheet" class="sheet-backdrop hidden">
+  <div class="sheet look">
+    <h3>🎨 Aparência do chat</h3>
+    <div id="lookPreview" class="look-preview">
+      <div class="bubble">Oi! Aprendi a música nova 🎶</div>
+      <div class="bubble mine">Bora cantar juntos? 🎤🔥</div>
+    </div>
+    <h4>Fonte</h4><div id="lookFonts" class="opts"></div>
+    <h4>Tamanho da letra</h4><div id="lookSizes" class="chips"></div>
+    <h4>Papel de parede</h4><div id="lookWalls" class="swatches"></div>
+    <input type="file" id="lookPhoto" accept="image/*" hidden>
+    <h4>Cor dos balões</h4><div id="lookBubbles" class="swatches round"></div>
+    <h4>Toque de mensagem (com o app aberto)</h4><div id="lookTones" class="chips"></div>
+    <p class="muted small" style="margin:6px 0 0">Com o app fechado, o aviso usa o toque do próprio aparelho.</p>
+    <label class="field check glass" style="margin-top:12px"><input type="checkbox" id="lookAnim"> Emojis animados</label>
+    <button class="btn primary big" id="lookDone">Pronto</button>
+  </div>
+</div>
+
+<!-- perfil de um amigo -->
+<div id="viewSheet" class="sheet-backdrop hidden">
+  <div class="sheet">
+    <div id="viewAv" class="prof-preview"></div>
+    <h3 id="viewName"></h3>
+    <div class="muted" id="viewHandle"></div>
+    <p id="viewBio" class="view-bio hidden"></p>
+    <div id="viewSong" class="view-song hidden"></div>
+    <button class="btn primary big" id="viewDuet">🎤 Cantar juntos</button>
+    <button class="btn" id="viewClose" style="width:100%;margin-top:10px">Fechar</button>
+  </div>
+</div>
+
 <div id="toast" class="toast hidden"></div>
 <div id="confetti"></div>
 
 <script src="vendor/supabase.js?v=18"></script>
 <script src="config.js?v=18"></script>
 <script src="moderacao.js?v=18"></script>
-<script src="app.js?v=21"></script>
+<script src="app.js?v=22"></script>
 <script src="share.js?v=18"></script>
 <script src="karaoke.js?v=21"></script>
-<script src="social.js?v=21"></script>
+<script src="social.js?v=22"></script>
 <script src="duet.js?v=20"></script>
-<script src="push.js?v=21"></script>
-<script src="sync.js?v=21"></script>
+<script src="push.js?v=22"></script>
+<script src="sync.js?v=22"></script>
+<script src="chatplus.js?v=22"></script>
+<script src="profile.js?v=22"></script>
 </body>
 </html>

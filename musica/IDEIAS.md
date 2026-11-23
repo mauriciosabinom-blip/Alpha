@@ -39,5 +39,11 @@ Com um toque, o usuário compartilha sua pontuação, a música que dominou ou s
 - **Como fazer:** desenhar a imagem no próprio app (canvas) + Web Share API do navegador. Sem custo e sem servidor.
 - **Pontos de atenção:** o Instagram não aceita link clicável no post, só no Stories (figurinha de link) e na bio — por isso a imagem leva o endereço escrito e um QR code. "Baixar o app" hoje = abrir o link e adicionar à tela de início; com app na App Store, o link aponta para a loja.
 
+## 5. Chat para adolescentes (app separado no futuro) 📝 registrado em 22/11/2026
+O chat está sendo testado dentro do Refrão, mas **no futuro vai virar um app à parte, focado em adolescentes**.
+- Já no Refrão (teste): aparência do chat (fontes, papel de parede, cores), emojis animados, figurinhas, GIFs (só classificação G), áudio, perfil com avatar animado e foto só para amigos.
+- **Pontos de atenção para o app de adolescentes:** moderação de áudio/foto (não há filtro automático gratuito), botão de denunciar/bloquear, regras de idade e consentimento dos pais (LGPD/ECA), termos de uso, contas de pais/responsáveis.
+- O toque de notificação personalizado e mais longo só é possível num app nativo (App Store / Play Store).
+
 ## Ordem sugerida
 1. Ativar o login (Supabase) → 2. Karaokê com nota de pronúncia (funciona sem servidor) → 3. Rede social/chat → 4. Karaokê online.

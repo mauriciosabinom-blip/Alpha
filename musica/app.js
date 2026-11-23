@@ -139,7 +139,7 @@ function applyTheme(song) {
 }
 
 /* ---------------- telas ---------------- */
-const SCREENS = ['home', 'pick', 'confirm', 'loading', 'lyrics', 'settings', 'login', 'social', 'chat'];
+const SCREENS = ['home', 'pick', 'confirm', 'loading', 'lyrics', 'settings', 'login', 'social', 'chat', 'profile'];
 let current = 'home';
 function show(id) { SCREENS.forEach(s => $(s).classList.toggle('hidden', s !== id)); current = id; window.scrollTo(0, 0); if (id === 'home') renderHome(); }
 
@@ -179,7 +179,7 @@ function renderHome() {
   $('goalRing').style.setProperty('--p', Math.min(100, d / g * 100));
   $('goalSub').textContent = d >= g ? 'Meta batida! Pode continuar se quiser 💪' : `Faltam ${g - d} frases hoje`;
   const song = S.songs[S.activeSongId];
-  applyTheme(song);
+  applyTheme(song); window.Profile?.syncNowPlaying();
   const hero = $('hero');
   if (!song) {
     const demo = { title: 'Refrão', artist: 'music' };
@@ -909,7 +909,7 @@ function maybeFlash() {
   rollDay();
   if (!S.daily.chosen && current !== 'confirm' && current !== 'loading') { if (!session) openPick(true); return; }
   if (!S.settings.unlock || session || !S.songs[S.activeSongId]) return;
-  if (['pick', 'confirm', 'loading', 'settings', 'social', 'chat', 'login'].includes(current)) return;
+  if (['pick', 'confirm', 'loading', 'settings', 'social', 'chat', 'login', 'profile'].includes(current)) return;
   startSession(S.settings.burst);
 }
 document.addEventListener('visibilitychange', () => {

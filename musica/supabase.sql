@@ -409,3 +409,106 @@ create policy "salvar meu progresso" on public.user_state for update to authenti
 revoke all on public.user_state from anon;
 grant select, insert, update on public.user_state to authenticated;
 grant select, insert, update, delete on public.user_state to service_role;
+
+-- ---------- Chat: áudio, figurinhas e GIFs ----------
+-- kind: 'text' (padrão) | 'audio' | 'sticker' | 'gif'; media: arquivo do áudio ou endereço da figurinha/GIF
+alter table public.messages add column if not exists kind text not null default 'text';
+alter table public.messages add column if not exists media text;
+alter table public.messages add column if not exists duration real;
+do $$ begin
+  alter table public.messages add constraint messages_kind_chk check (kind in ('text', 'audio', 'sticker', 'gif'));
+exception when duplicate_object then null; end $$;
+
+-- validação no servidor: só aceita mídia de origens conhecidas (sem links soltos, sem arquivos de fora)
+create or replace function public.moderate_message() returns trigger language plpgsql as $$
+begin
+  if has_link(new.body) then raise exception 'Links não são permitidos no chat.' using errcode = 'P0001', hint = 'link'; end if;
+  if has_blocked_words(new.body) then raise exception 'Mensagem bloqueada: linguagem imprópria.' using errcode = 'P0001', hint = 'palavrao'; end if;
+  if coalesce(new.kind, 'text') = 'text' then
+    if new.media is not null then raise exception 'Mensagem inválida.' using errcode = 'P0001'; end if;
+  elsif new.kind = 'audio' then
+    if new.media is null or new.media !~ ('^' || new.sender::text || '/[a-z0-9-]{8,64}\.(m4a|mp4|aac|webm|ogg|mp3)$')
+       or coalesce(new.duration, 0) <= 0 or new.duration > 125 then
+      raise exception 'Áudio inválido.' using errcode = 'P0001';
+    end if;
+  elsif new.kind = 'sticker' then
+    if new.media is null or new.media !~ '^https://fonts\.gstatic\.com/s/e/notoemoji/latest/[0-9a-f_]{2,60}/512\.(webp|gif)$' then
+      raise exception 'Figurinha inválida.' using errcode = 'P0001';
+    end if;
+  elsif new.kind = 'gif' then
+    if new.media is null or new.media !~ '^https://media[0-9]?\.giphy\.com/media/[A-Za-z0-9]{5,40}/[a-z0-9_]{1,40}\.(gif|webp|mp4)$' then
+      raise exception 'GIF inválido.' using errcode = 'P0001';
+    end if;
+  end if;
+  return new;
+end;
+$$;
+drop trigger if exists messages_moderation on public.messages;
+create trigger messages_moderation before insert or update of body, kind, media on public.messages
+  for each row execute procedure public.moderate_message();
+
+-- arquivos de áudio: privados; só quem mandou e quem recebeu podem ouvir
+insert into storage.buckets (id, name, public, file_size_limit, allowed_mime_types)
+values ('audios', 'audios', false, 5242880, array['audio/mp4', 'audio/aac', 'audio/x-m4a', 'audio/webm', 'audio/ogg', 'audio/mpeg'])
+on conflict (id) do update set public = false, file_size_limit = excluded.file_size_limit, allowed_mime_types = excluded.allowed_mime_types;
+drop policy if exists "refrao enviar meu audio" on storage.objects;
+create policy "refrao enviar meu audio" on storage.objects for insert to authenticated
+  with check (bucket_id = 'audios' and (storage.foldername(name))[1] = auth.uid()::text);
+drop policy if exists "refrao ouvir audios da conversa" on storage.objects;
+create policy "refrao ouvir audios da conversa" on storage.objects for select to authenticated
+  using (bucket_id = 'audios' and (
+    (storage.foldername(name))[1] = auth.uid()::text
+    or exists (select 1 from public.messages m where m.kind = 'audio' and m.media = storage.objects.name and auth.uid() in (m.sender, m.receiver))
+  ));
+
+-- ---------- Perfil: recado, avatar e "estudando agora" ----------
+alter table public.profiles add column if not exists bio text;
+alter table public.profiles add column if not exists avatar jsonb;
+alter table public.profiles add column if not exists now_playing text;
+do $$ begin
+  alter table public.profiles add constraint profiles_bio_len check (char_length(bio) <= 80);
+exception when duplicate_object then null; end $$;
+do $$ begin
+  alter table public.profiles add constraint profiles_np_len check (char_length(now_playing) <= 120);
+exception when duplicate_object then null; end $$;
+
+create or replace function public.moderate_profile() returns trigger language plpgsql as $$
+begin
+  if has_blocked_words(new.name) or has_blocked_words(new.handle) or has_blocked_words(new.bio) or has_blocked_words(new.now_playing) then
+    raise exception 'Nome ou recado com palavras não permitidas.' using errcode = 'P0001', hint = 'palavrao';
+  end if;
+  if has_link(new.bio) then raise exception 'Links não são permitidos no perfil.' using errcode = 'P0001', hint = 'link'; end if;
+  -- avatar: só os campos conhecidos; a foto precisa ser a da própria pessoa
+  if new.avatar is not null then
+    if jsonb_typeof(new.avatar) <> 'object' or pg_column_size(new.avatar) > 600
+       or (new.avatar ? 'photo' and new.avatar->>'photo' is not null and new.avatar->>'photo' <> new.id::text || '/avatar.jpg') then
+      raise exception 'Avatar inválido.' using errcode = 'P0001';
+    end if;
+  end if;
+  return new;
+end;
+$$;
+grant update (name, bio, avatar, now_playing) on public.profiles to authenticated;
+
+-- fotos de perfil: privadas — só a própria pessoa e os amigos dela veem
+insert into storage.buckets (id, name, public, file_size_limit, allowed_mime_types)
+values ('avatars', 'avatars', false, 1048576, array['image/jpeg', 'image/png', 'image/webp'])
+on conflict (id) do update set public = false, file_size_limit = excluded.file_size_limit, allowed_mime_types = excluded.allowed_mime_types;
+drop policy if exists "refrao enviar minha foto" on storage.objects;
+create policy "refrao enviar minha foto" on storage.objects for insert to authenticated
+  with check (bucket_id = 'avatars' and name = auth.uid()::text || '/avatar.jpg');
+drop policy if exists "refrao trocar minha foto" on storage.objects;
+create policy "refrao trocar minha foto" on storage.objects for update to authenticated
+  using (bucket_id = 'avatars' and name = auth.uid()::text || '/avatar.jpg')
+  with check (bucket_id = 'avatars' and name = auth.uid()::text || '/avatar.jpg');
+drop policy if exists "refrao apagar minha foto" on storage.objects;
+create policy "refrao apagar minha foto" on storage.objects for delete to authenticated
+  using (bucket_id = 'avatars' and name = auth.uid()::text || '/avatar.jpg');
+drop policy if exists "refrao ver foto de amigos" on storage.objects;
+create policy "refrao ver foto de amigos" on storage.objects for select to authenticated
+  using (bucket_id = 'avatars' and (
+    name = auth.uid()::text || '/avatar.jpg'
+    or exists (select 1 from public.friendships f where f.status = 'accepted'
+      and ((f.requester = auth.uid() and f.addressee::text = (storage.foldername(name))[1])
+        or (f.addressee = auth.uid() and f.requester::text = (storage.foldername(name))[1])))
+  ));

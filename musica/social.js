@@ -13,12 +13,13 @@ const Social = (() => {
   const other = f => f.requester === me.id ? f.addressee : f.requester;
   const who = id => profiles[id] || { handle: '…', name: '…' };
   const initials = p => (p.name || p.handle || '?').trim()[0].toUpperCase();
-  const avatar = p => `<span class="avatar" style="--h:${[...(p.handle || '')].reduce((a, c) => a + c.charCodeAt(0), 0) % 360}">${esc(initials(p))}</span>`;
+  const avatar = (p, size) => window.Profile ? Profile.html(p, size || 42) : `<span class="avatar" style="--h:${[...(p.handle || '')].reduce((a, c) => a + c.charCodeAt(0), 0) % 360}">${esc(initials(p))}</span>`;
   const errText = e => {
     const m = e?.message || '';
     if (/Links não são permitidos|linguagem imprópria|Nome não permitido/.test(m)) return m;
     if (/row-level security/.test(m)) return 'Vocês precisam ser amigos para conversar.';
     if (/duplicate key|unique/.test(m)) return 'Já existe um pedido de amizade entre vocês.';
+    if (/Áudio inválido|Figurinha inválida|GIF inválido|Mensagem inválida/.test(m)) return m;
     if (/fetch|network|Failed/i.test(m)) return 'Sem conexão com a internet.';
     return 'Não deu certo agora. Tente de novo.';
   };
@@ -27,14 +28,14 @@ const Social = (() => {
   async function loadProfiles(ids) {
     const need = [...new Set(ids)].filter(id => id && !profiles[id]);
     if (!need.length) return;
-    const { data } = await sb.from('profiles').select('id,handle,name').in('id', need);
+    const { data } = await sb.from('profiles').select('*').in('id', need);
     (data || []).forEach(p => profiles[p.id] = p);
   }
   async function refresh() {
     if (!me) return;
     const [fr, ms] = await Promise.all([
       sb.from('friendships').select('*').order('created_at', { ascending: false }),
-      sb.from('messages').select('id,sender,receiver,body,created_at,read_at').order('created_at', { ascending: false }).limit(300)
+      sb.from('messages').select('*').order('created_at', { ascending: false }).limit(300)
     ]);
     if (fr.error || ms.error) throw fr.error || ms.error;
     friendships = fr.data || [];
@@ -44,7 +45,7 @@ const Social = (() => {
       if (!lastByFriend[f]) lastByFriend[f] = m;
       if (m.receiver === me.id && !m.read_at) unread[f] = (unread[f] || 0) + 1;
     }
-    await loadProfiles(friendships.map(other));
+    await loadProfiles([...friendships.map(other), me.id]);
     renderBadge();
     if (current === 'social') renderSocial();
   }
@@ -86,7 +87,7 @@ const Social = (() => {
   function renderSocial() {
     const sess = getSession();
     $('socialMe').innerHTML = me
-      ? `${avatar({ handle: sess.handle, name: sess.name })}<div><b>${esc(sess.name)}</b><div class="muted small">Seu usuário: <b>@${esc(sess.handle)}</b> — passe para seus amigos te acharem</div></div>`
+      ? `${avatar(profiles[me.id] || { handle: sess.handle, name: sess.name }, 54)}<div style="flex:1"><b>${esc(profiles[me.id]?.name || sess.name)}</b><div class="muted small">Seu usuário: <b>@${esc(sess.handle)}</b>${profiles[me.id]?.bio ? ' · ' + esc(profiles[me.id].bio) : ' — passe para seus amigos te acharem'}</div></div><button class="btn sm" id="btnMyProfile">✏️ Perfil</button>`
       : '';
     $('socialOff').classList.toggle('hidden', !!me);
     $('socialOn').classList.toggle('hidden', !me);
@@ -99,19 +100,20 @@ const Social = (() => {
       return `<div class="person glass">${avatar(p)}<div class="pinfo"><b>${esc(p.name)}</b><span class="muted small">@${esc(p.handle)}</span></div>
         <button class="btn primary sm" data-accept="${f.id}">Aceitar</button><button class="btn sm" data-del="${f.id}" aria-label="Recusar">✕</button></div>`; }).join('') : '';
     $('socialFriends').innerHTML = `<h4>Conversas</h4>` + (friends.length ? friends.map(id => { const p = who(id), last = lastByFriend[id], n = unread[id] || 0;
-      const prev = last ? (window.Duet?.isInvite(last.body) ? '🎤 Convite para cantar' : (last.sender === me.id ? 'Você: ' : '') + last.body) : 'Diga oi! 👋';
+      const prev = last ? (window.Duet?.isInvite(last.body) ? '🎤 Convite para cantar' : (last.sender === me.id ? 'Você: ' : '') + (last.kind === 'sticker' ? last.body + ' Figurinha' : last.body)) : 'Diga oi! 👋';
       return `<button class="person glass chatrow" data-chat="${esc(id)}">${avatar(p)}<div class="pinfo"><b>${esc(p.name)} <span class="muted small">@${esc(p.handle)}</span></b>
         <span class="muted small ell">${esc(prev)}</span></div>${last ? `<span class="muted small">${fmtTime(last.created_at)}</span>` : ''}${n ? `<span class="badge">${n}</span>` : ''}</button>`; }).join('')
       : `<div class="empty-social muted">Nenhum amigo ainda. Busque alguém pelo @usuário aqui em cima 🔎</div>`);
     $('socialSent').innerHTML = outgoing.length ? `<h4>Pedidos enviados</h4>` + outgoing.map(f => { const p = who(f.addressee);
       return `<div class="person glass">${avatar(p)}<div class="pinfo"><b>${esc(p.name)}</b><span class="muted small">@${esc(p.handle)} · aguardando</span></div>
         <button class="btn sm" data-del="${f.id}">Cancelar</button></div>`; }).join('') : '';
+    window.Profile?.hydrate($('social'));
   }
   let searchTimer = null;
   async function search(q) {
     const h = toHandle(q), box = $('socialResults');
     if (h.length < 2) { box.innerHTML = ''; return; }
-    const { data, error } = await sb.from('profiles').select('id,handle,name').ilike('handle', h + '%').neq('id', me.id).order('handle').limit(8);
+    const { data, error } = await sb.from('profiles').select('*').ilike('handle', h + '%').neq('id', me.id).order('handle').limit(8);
     if (error) { box.innerHTML = `<div class="muted small">${esc(errText(error))}</div>`; return; }
     (data || []).forEach(p => profiles[p.id] = p);
     box.innerHTML = (data || []).length ? data.map(p => {
@@ -127,10 +129,11 @@ const Social = (() => {
   /* ---------- tela: conversa ---------- */
   async function openChat(id) {
     chatWith = id; const p = who(id);
-    $('chatTitle').innerHTML = `${avatar(p)}<div><b>${esc(p.name)}</b><div class="muted small">@${esc(p.handle)}</div></div>`;
+    $('chatTitle').innerHTML = `${avatar(p, 38)}<div><b>${esc(p.name)}</b><div class="muted small">${p.now_playing ? '🎵 ' + esc(p.now_playing) : '@' + esc(p.handle)}</div></div>`;
+    window.Profile?.hydrate($('chatTitle'));
     $('chatList').innerHTML = '<div class="muted small center">Carregando…</div>'; $('chatWarn').textContent = '';
-    show('chat');
-    const { data, error } = await sb.from('messages').select('id,sender,receiver,body,created_at,read_at')
+    show('chat'); window.ChatPlus?.apply(); window.ChatPlus?.syncComposer(); $('emojiPanel').classList.add('hidden');
+    const { data, error } = await sb.from('messages').select('*')
       .or(`and(sender.eq.${me.id},receiver.eq.${id}),and(sender.eq.${id},receiver.eq.${me.id})`).order('created_at', { ascending: true }).limit(300);
     if (chatWith !== id) return;
     if (error) { $('chatList').innerHTML = `<div class="muted small center">${esc(errText(error))}</div>`; return; }
@@ -145,8 +148,9 @@ const Social = (() => {
     $('chatList').innerHTML = chatMsgs.length ? chatMsgs.map(m => {
       const d = fmtDay(m.created_at), sep = d !== day ? `<div class="daysep">${d}</div>` : ''; day = d;
       const mine = m.sender === me.id;
-      const inner = window.Duet?.isInvite(m.body) ? window.Duet.inviteHtml(m, mine) : esc(m.body);
-      return `${sep}<div class="bubble ${mine ? 'mine' : ''}">${inner}<span class="time">${fmtTime(m.created_at)}${mine && m.read_at ? ' ✓✓' : ''}</span></div>`;
+      const inner = window.Duet?.isInvite(m.body) ? window.Duet.inviteHtml(m, mine) : (window.ChatPlus ? ChatPlus.render(m) : esc(m.body));
+      const bare = window.ChatPlus?.isMediaOnly(m) ? ' bare' : '';
+      return `${sep}<div class="bubble ${mine ? 'mine' : ''}${bare}">${inner}<span class="time">${fmtTime(m.created_at)}${mine && m.read_at ? ' ✓✓' : ''}</span></div>`;
     }).join('') : `<div class="empty-social muted">Comecem a conversa! Só texto — sem links nem palavrões 🙂</div>`;
     if (scroll) { const l = $('chatList'); l.scrollTop = l.scrollHeight; }
   }
@@ -157,9 +161,21 @@ const Social = (() => {
     if (window.temLink?.(body)) { warn.textContent = '🚫 Links não são permitidos no chat — só texto.'; return false; }
     if (window.temPalavrao?.(body)) { warn.textContent = '🚫 Essa mensagem tem palavras não permitidas.'; return false; }
     warn.textContent = '';
-    if (!silent) $('chatInput').value = '';
+    if (!silent) { $('chatInput').value = ''; window.ChatPlus?.syncComposer(); }
     const { data, error } = await sb.from('messages').insert({ sender: me.id, receiver: chatWith, body }).select().single();
-    if (error) { warn.textContent = '🚫 ' + errText(error); if (!silent) $('chatInput').value = body; return false; }
+    if (error) { warn.textContent = '🚫 ' + errText(error); if (!silent) { $('chatInput').value = body; window.ChatPlus?.syncComposer(); } return false; }
+    chatMsgs.push(data); lastByFriend[chatWith] = data; renderChat(true);
+    return true;
+  }
+  // áudio, figurinha e GIF
+  async function sendMedia(fields) {
+    if (!chatWith) return false;
+    const { data, error } = await sb.from('messages').insert({ sender: me.id, receiver: chatWith, ...fields }).select().single();
+    if (error) {
+      const m = error.message || '';
+      toast(/column .*(kind|media|duration)|schema cache/i.test(m) ? 'Essa função ainda não foi ativada no servidor.' : '🚫 ' + errText(error), 4500);
+      return false;
+    }
     chatMsgs.push(data); lastByFriend[chatWith] = data; renderChat(true);
     return true;
   }
@@ -194,7 +210,14 @@ const Social = (() => {
   $('chatDuet').onclick = () => { $('chatMenuBox').classList.add('hidden'); window.Duet?.invite(chatWith); };
   $('chatList').onclick = e => { const b = e.target.closest('[data-join]'); if (b) window.Duet?.join(b.dataset.join, chatWith); };
 
+  // avatares com foto (só amigos) e botões do perfil
+  const hydrateAll = () => window.Profile?.hydrate($('social'));
+  new MutationObserver(() => hydrateAll()).observe($('socialOn'), { childList: true, subtree: false });
+  $('socialMe').onclick = e => { if (e.target.closest('#btnMyProfile, .av')) window.Profile?.open(); };
+  $('chatTitle').onclick = () => chatWith && window.Profile?.view(chatWith);
+
   return {
+    refreshMe() { if (me) delete profiles[me.id]; },
     async start(session) {
       if (!session || !sb) { me = null; $('socialBadge').classList.add('hidden'); return; }
       if (me?.id === session.user.id) return;
@@ -203,7 +226,7 @@ const Social = (() => {
       sb.auth.onAuthStateChange((ev, s) => { if (s?.access_token) sb.realtime.setAuth(s.access_token); });
     },
     stop() { if (live) sb.removeChannel(live); live = null; me = null; },
-    send: (text) => send(text, true),
+    send: (text) => send(text, true), sendMedia,
     get me() { return me; }, who, openChat, refresh
   };
 })();

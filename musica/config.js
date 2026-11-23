@@ -7,5 +7,8 @@ window.REFRAO_CONFIG = {
   supabaseKey: 'sb_publishable_3AjjP7ROnX0df4hzGZufDA_M52XUs6H',
   // Opcional: chave gratuita da "YouTube Data API v3" (Google Cloud). Deixa a busca
   // automática do vídeo 100% confiável. Vazio = usa espelhos públicos gratuitos do YouTube.
-  youtubeKey: ''
+  youtubeKey: '',
+  // Opcional: chave gratuita do GIPHY (developers.giphy.com) para a aba de GIFs do chat.
+  // O app só pede GIFs com classificação "G" (livre para todas as idades).
+  giphyKey: ''
 };

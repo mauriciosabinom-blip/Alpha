@@ -76,6 +76,7 @@ const Push = (() => {
   const unlock = () => { try { ac = ac || new (window.AudioContext || window.webkitAudioContext)(); if (ac.state === 'suspended') ac.resume(); } catch (e) {} };
   document.addEventListener('pointerdown', unlock, { passive: true });
   function chime() {
+    if (window.ChatPlus) return ChatPlus.playTone();
     if (!ac || ac.state !== 'running') return;
     const t0 = ac.currentTime + 0.02;
     // dó – mi – sol (oitava acima), como um acorde arpejado
