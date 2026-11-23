@@ -336,7 +336,9 @@
     anual: { label: 'Anual', amount: 79.90, txid: 'REFRAOANUAL' }
   };
   const KEY = '41417969000140';
-  let plan = 'anual';
+  const params = new URLSearchParams(location.search);
+  const USER = (params.get('u') || '').replace(/[^a-z0-9]/gi, '').toLowerCase();
+  let plan = params.get('plano') === 'mensal' ? 'mensal' : 'anual';
   const $ = id => document.getElementById(id);
   const brl = v => 'R$ ' + v.toFixed(2).replace('.', ',');
   function render() {
@@ -351,7 +353,7 @@
       $('payQr').innerHTML = qr.createImgTag(6, 0);
     } catch (e) { $('payQr').innerHTML = '<small style="color:#333;text-align:center">Use o código<br>copia e cola</small>'; }
     if (CONTATO_WHATSAPP) {
-      const msg = `Olá! Paguei o plano ${p.label} do Refrão (${brl(p.amount)}). Meu @usuário é: `;
+      const msg = `Olá! Paguei o plano ${p.label} do Refrão (${brl(p.amount)}). Meu @usuário é: ${USER ? '@' + USER : ''}`;
       $('afterBtn').href = `https://wa.me/${CONTATO_WHATSAPP}?text=${encodeURIComponent(msg)}`;
       $('afterBtn').classList.remove('hidden');
     }
@@ -369,6 +371,8 @@
   };
   const st = document.createElement('style'); st.textContent = '.hidden{display:none!important}'; document.head.appendChild(st);
   render();
+  if (USER) { const f = document.querySelector('#pagar .fine'); if (f) f.innerHTML = `Assinando a conta <b>@${USER}</b>. Envie o comprovante pelo botão acima.`; }
+  if (location.hash === '#pagar') setTimeout(() => $('pagar').scrollIntoView({ block: 'start' }), 300);
 </script>
 </body>
 </html>

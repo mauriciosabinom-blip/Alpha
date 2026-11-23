@@ -1136,6 +1136,7 @@ async function connectAccount(sess) {
     window.__socialSession = data.session || null;
     window.Social?.start(data.session || null);
     window.Sync?.start(data.session || null);
+    window.Access?.check();
   } catch (e) { window.__socialSession = null; window.Social?.start(null); }
 }
 if (!AUTH_ON) boot();

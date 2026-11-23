@@ -433,3 +433,26 @@ body:has(.sheet-backdrop:not(.hidden)) .toast{bottom:auto;top:max(70px,calc(env(
 .wd{flex:1;display:flex;flex-direction:column;align-items:center;gap:2px;padding:6px 0;border-radius:12px;background:var(--glass);font-size:1.1rem;color:var(--muted)}
 .wd.on{background:color-mix(in srgb,#fb923c 22%,transparent)}
 .wd small{font-size:.65rem}
+
+/* ---------- teste grátis / bloqueio ---------- */
+.trial-bar{display:flex;align-items:center;justify-content:space-between;gap:10px;width:100%;margin:0 0 6px;padding:10px 14px;border-radius:16px;border:1px solid color-mix(in srgb,var(--doubt) 45%,transparent);background:color-mix(in srgb,var(--doubt) 12%,transparent);color:#fde68a;font-size:.88rem;cursor:pointer;text-align:left}
+.trial-bar .tb-t{flex:1;min-width:0}
+.trial-bar .tb-go{font-weight:700;white-space:nowrap;color:var(--text)}
+body.locked{overflow:hidden}
+.paywall{position:fixed;inset:0;z-index:70;overflow-y:auto;background:radial-gradient(120% 70% at 20% -10%,color-mix(in srgb,var(--accent) 55%,transparent),transparent 60%),radial-gradient(90% 60% at 110% 30%,color-mix(in srgb,var(--accent2) 40%,transparent),transparent 60%),var(--bg);display:flex;justify-content:center;padding:max(24px,env(safe-area-inset-top)) 18px 32px;animation:fadeIn .3s ease}
+.pw-box{max-width:460px;width:100%;margin:auto;text-align:center}
+.pw-logo{width:64px;height:64px;margin:0 auto 14px;border-radius:20px;display:grid;place-items:center;font-size:2rem;background:linear-gradient(135deg,var(--accent),var(--accent2));box-shadow:0 16px 40px -12px var(--accent2)}
+.pw-box h2{font-family:var(--serif);font-size:1.9rem;margin:0 0 8px}
+.pw-plans{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin:20px 0 14px}
+.pw-plan{position:relative;border:1px solid var(--line);background:var(--glass);border-radius:20px;padding:16px 10px 14px;cursor:pointer;display:flex;flex-direction:column;align-items:center;gap:2px}
+.pw-plan.best{border:2px solid color-mix(in srgb,var(--accent2) 70%,transparent);background:linear-gradient(160deg,rgba(139,92,246,.25),rgba(236,72,153,.18))}
+.pw-plan em{position:absolute;top:-11px;font-style:normal;font-size:.7rem;font-weight:800;padding:3px 10px;border-radius:999px;background:linear-gradient(135deg,#fbbf24,#f97316);color:#1a1000}
+.pw-plan b{font-size:.95rem}
+.pw-price{font-family:var(--serif);font-size:1.6rem;font-weight:800}
+.pw-plan small{color:var(--muted)}
+.pw-steps{text-align:left;color:var(--muted);line-height:1.5;padding-left:22px;margin:6px 0 18px}
+.pw-steps b{color:var(--text)}
+
+/* topo da tela inicial cabe em celulares estreitos (320px) */
+.stats .icon-btn{min-width:38px}
+@media (max-width:360px){.stats{gap:2px}.brand{font-size:1.25rem}.stats .chip{padding:6px 10px}}

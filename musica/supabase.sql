@@ -512,3 +512,55 @@ create policy "refrao ver foto de amigos" on storage.objects for select to authe
       and ((f.requester = auth.uid() and f.addressee::text = (storage.foldername(name))[1])
         or (f.addressee = auth.uid() and f.requester::text = (storage.foldername(name))[1])))
   ));
+
+-- ---------- Assinaturas: teste grátis de 15 minutos + liberação manual ----------
+create table if not exists public.subscriptions (
+  user_id uuid primary key references public.profiles (id) on delete cascade,
+  plan text not null check (plan in ('mensal', 'anual', 'cortesia')),
+  paid_until timestamptz not null,
+  updated_at timestamptz not null default now()
+);
+alter table public.subscriptions enable row level security;
+revoke all on public.subscriptions from anon, authenticated;
+grant select on public.subscriptions to authenticated;
+grant select, insert, update, delete on public.subscriptions to service_role;
+drop policy if exists "ver minha assinatura" on public.subscriptions;
+create policy "ver minha assinatura" on public.subscriptions for select to authenticated using (user_id = auth.uid());
+
+-- situação de acesso de quem está logado (o servidor decide; o relógio do celular não conta)
+create or replace function public.my_access() returns jsonb
+language sql stable security definer set search_path = public as $$
+  select jsonb_build_object(
+    'now', now(),
+    'trial_ends', p.created_at + interval '15 minutes',
+    'paid_until', s.paid_until,
+    'plan', s.plan,
+    'status', case when s.paid_until > now() then 'active'
+                   when p.created_at + interval '15 minutes' > now() then 'trial'
+                   else 'expired' end)
+  from public.profiles p left join public.subscriptions s on s.user_id = p.id
+  where p.id = auth.uid()
+$$;
+revoke all on function public.my_access() from public, anon;
+grant execute on function public.my_access() to authenticated;
+
+-- para você liberar quem pagou (só funciona no SQL Editor do Supabase):
+--   select liberar_assinatura('usuario', 'mensal');   -- +1 mês
+--   select liberar_assinatura('usuario', 'anual');    -- +1 ano
+--   select liberar_assinatura('usuario', 'cortesia'); -- sem prazo
+-- Se a pessoa ainda tiver dias pagos, o tempo novo é somado.
+create or replace function public.liberar_assinatura(p_handle text, p_plano text) returns text
+language plpgsql security definer set search_path = public as $$
+declare uid uuid; ate timestamptz; h text := lower(replace(trim(p_handle), '@', ''));
+begin
+  if p_plano not in ('mensal', 'anual', 'cortesia') then return 'Plano inválido: use mensal, anual ou cortesia'; end if;
+  select id into uid from public.profiles where handle = h;
+  if uid is null then return 'Usuário @' || h || ' não encontrado'; end if;
+  insert into public.subscriptions (user_id, plan, paid_until) values (uid, p_plano, now()) on conflict (user_id) do nothing;
+  update public.subscriptions set plan = p_plano, updated_at = now(),
+    paid_until = greatest(paid_until, now()) + case p_plano when 'mensal' then interval '1 month' when 'anual' then interval '1 year' else interval '100 years' end
+  where user_id = uid returning paid_until into ate;
+  return '@' || h || ' liberado (' || p_plano || ') até ' || to_char(ate at time zone 'America/Sao_Paulo', 'DD/MM/YYYY');
+end;
+$$;
+revoke all on function public.liberar_assinatura(text, text) from public, anon, authenticated;

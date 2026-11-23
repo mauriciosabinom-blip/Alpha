@@ -14,7 +14,7 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,500;9..144,600;9..144,700;9..144,800&family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="style.css?v=26">
+<link rel="stylesheet" href="style.css?v=30">
 </head>
 <body>
 <div id="bgArt"></div><div id="bgShade"></div>
@@ -143,6 +143,7 @@
     </div>
   </header>
 
+  <button class="trial-bar hidden" id="trialChip">⏳ Teste grátis</button>
   <div id="hero" class="hero"></div>
 
   <div class="actions">
@@ -265,7 +266,8 @@
     <button class="btn" id="btnEmail">📧 Vincular e-mail</button>
   </div>
   <button class="btn" id="btnProfileSet" style="width:100%;margin-top:10px">👤 Meu perfil e avatar</button>
-  <a class="btn primary" href="assinar/" target="_blank" rel="noopener" style="width:100%;margin-top:10px">⭐ Planos e assinatura</a>
+  <a class="btn primary" id="btnPlans" href="assinar/" target="_blank" rel="noopener" style="width:100%;margin-top:10px">⭐ Planos e assinatura</a>
+  <p class="muted small center" id="planStatus" style="margin:8px 0 0"></p>
   <div class="glass email-box hidden" id="installBox">
     <b>📲 Instalar o Refrão</b>
     <div class="muted small">Vira um app de verdade na tela do celular: abre mais rápido, em tela cheia e com avisos de mensagem.</div>
@@ -520,13 +522,34 @@
   </div>
 </div>
 
+<!-- fim do teste grátis / assinatura vencida -->
+<div id="paywall" class="paywall hidden" role="dialog" aria-modal="true">
+  <div class="pw-box">
+    <div class="pw-logo">♪</div>
+    <h2 id="pwTitle">Seu teste grátis terminou</h2>
+    <p class="muted">Gostou? Assine para continuar aprendendo inglês com as músicas que você ama — e manter seu progresso, sua 🔥 e seus amigos.</p>
+    <div class="pw-plans">
+      <button class="pw-plan" data-pw-plan="mensal"><b>Mensal</b><span class="pw-price">R$ 9,99</span><small>por mês</small></button>
+      <button class="pw-plan best" data-pw-plan="anual"><em>33% OFF</em><b>Anual</b><span class="pw-price">R$ 79,90</span><small>R$ 6,66 por mês</small></button>
+    </div>
+    <ol class="pw-steps">
+      <li>Escolha o plano e pague com <b>Pix</b>.</li>
+      <li>Envie o comprovante no WhatsApp com seu usuário <b id="pwUser">@</b>.</li>
+      <li>Pronto: assim que for conferido, o app <b>destrava sozinho</b>.</li>
+    </ol>
+    <button class="btn" id="pwWhats" style="width:100%">💬 Falar no WhatsApp</button>
+    <button class="btn" id="pwCheck" style="width:100%;margin-top:10px">🔄 Já paguei — verificar agora</button>
+    <button class="linkbtn" id="pwLogout" style="margin-top:10px">Sair da conta</button>
+  </div>
+</div>
+
 <div id="toast" class="toast hidden"></div>
 <div id="confetti"></div>
 
 <script src="vendor/supabase.js?v=18"></script>
 <script src="config.js?v=18"></script>
 <script src="moderacao.js?v=18"></script>
-<script src="app.js?v=26"></script>
+<script src="app.js?v=28"></script>
 <script src="share.js?v=27"></script>
 <script src="karaoke.js?v=23"></script>
 <script src="social.js?v=22"></script>
@@ -535,5 +558,6 @@
 <script src="sync.js?v=25"></script>
 <script src="chatplus.js?v=23"></script>
 <script src="profile.js?v=24"></script>
+<script src="access.js?v=30"></script>
 </body>
 </html>
