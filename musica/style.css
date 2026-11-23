@@ -527,3 +527,26 @@ body.locked{overflow:hidden}
 .tour-dots i{width:6px;height:6px;border-radius:50%;background:var(--line)}
 .tour-dots i.on{background:var(--accent);width:16px;border-radius:4px}
 #exCount:empty{visibility:hidden}
+/* resultado da prova */
+#exEnd{gap:10px;padding-bottom:12px}
+#exEnd .ex-emo{font-size:3.2rem;line-height:1;animation:exBounce .8s cubic-bezier(.2,1.6,.4,1) both}
+@keyframes exBounce{from{transform:scale(.2) rotate(-20deg);opacity:0}to{transform:none;opacity:1}}
+.ex-ring{position:relative;width:190px;height:190px;margin:0 auto;flex-shrink:0}
+.ex-ring svg{width:100%;height:100%;transform:rotate(-90deg)}
+.ex-ring circle{fill:none;stroke-width:12;stroke-linecap:round}
+.ex-ring .bg{stroke:var(--glass2)}
+.ex-ring .fg{stroke:url(#exGrad);transition:stroke-dashoffset 1.3s cubic-bezier(.25,1,.35,1);filter:drop-shadow(0 0 8px color-mix(in srgb,var(--accent) 60%,transparent))}
+.ex-ring-in{position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center}
+.ex-ring-in small{font-size:.7rem;letter-spacing:.2em;color:var(--muted);font-weight:800}
+.ex-ring-in b{font-family:var(--serif);font-size:3.6rem;line-height:1;font-variant-numeric:tabular-nums}
+.ex-ring-in span{font-size:.8rem;color:var(--muted);font-weight:600;margin-top:2px}
+.ex-stars{display:flex;justify-content:center;gap:6px;font-size:2rem}
+.ex-stars i{font-style:normal;color:var(--glass2);animation:exStar .5s cubic-bezier(.2,1.8,.4,1) both}
+.ex-stars i.on{color:#fbbf24;text-shadow:0 0 14px #fbbf2499}
+@keyframes exStar{from{transform:scale(0);opacity:0}to{transform:none;opacity:1}}
+.ex-title{font-size:2rem!important;margin:2px 0 0!important}
+.ex-cmp{align-self:center;font-weight:650;font-size:.88rem;padding:6px 14px;border-radius:999px;background:var(--glass);border:1px solid var(--line)}
+.ex-cmp.rec{background:color-mix(in srgb,#fbbf24 18%,transparent);border-color:#fbbf2488;color:#fde68a}
+.ex-review{text-align:left;padding:4px 14px}
+.ex-review summary{cursor:pointer;padding:10px 0;font-weight:650;color:var(--muted)}
+.ex-li small.you{display:block;color:#cfc6ee;font-style:italic}

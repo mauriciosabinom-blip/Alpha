@@ -131,24 +131,74 @@ const Prova = (() => {
   }
   function next() { if (++i < q.length) ask(); else finish(); }
 
-  /* ---------- resultado ---------- */
+  /* ---------- resultado: nota, estrelas e comemoração ---------- */
+  const TIERS = [
+    [95, '🏆', 'PERFEITO!', 'Nota máxima — você domina essa música!'],
+    [85, '🤩', 'Excelente!', 'Mandou muito bem, quase gabaritou!'],
+    [70, '🎉', 'Muito bem!', 'Você entende de verdade essa música.'],
+    [50, '😄', 'Bom trabalho!', 'Mais da metade certa — tá evoluindo!'],
+    [30, '💪', 'Bom começo!', 'Estude mais um pouco e tente de novo.'],
+    [0, '🌱', 'Todo mundo começa assim!', 'Revise as frases nos cartões e volte aqui.']
+  ];
+  const fmtNota = pct => (Math.round(pct / 10 * 10) / 10).toLocaleString('pt-BR', { minimumFractionDigits: pct % 10 ? 1 : 0, maximumFractionDigits: 1 });
+  function fanfare(good) {
+    try {
+      const ac = new (window.AudioContext || window.webkitAudioContext)();
+      const notes = good ? [523.25, 659.25, 783.99, 1046.5] : [392, 523.25, 659.25];
+      notes.forEach((f, k) => {
+        const o = ac.createOscillator(), g = ac.createGain(), t = ac.currentTime + k * 0.13;
+        o.type = 'triangle'; o.frequency.value = f; o.connect(g); g.connect(ac.destination);
+        g.gain.setValueAtTime(0, t); g.gain.linearRampToValueAtTime(0.18, t + 0.02); g.gain.exponentialRampToValueAtTime(0.001, t + (k === notes.length - 1 ? 0.9 : 0.3));
+        o.start(t); o.stop(t + 1);
+      });
+      setTimeout(() => ac.close(), 1800);
+    } catch (e) {}
+  }
   function finish() {
+    speechSynthesis?.cancel();
     const s = song(), pts = results.reduce((a, r) => a + (r.v === 'ok' ? 1 : r.v === 'meio' ? 0.5 : 0), 0);
-    const pct = Math.round(pts / results.length * 100);
-    const best = !s.examBest || pct > s.examBest.pct;
-    if (best) { s.examBest = { pct, date: Date.now() }; touch(s); save(); }
+    const pct = Math.round(pts / results.length * 100), nota = fmtNota(pct);
+    const prev = s.examBest?.pct, best = prev == null || pct > prev;
+    if (best) s.examBest = { pct, date: Date.now() };
+    s.exams = [...(s.exams || []), { pct, n: results.length, date: Date.now() }].slice(-20);
+    touch(s); save();
     const n = k => results.filter(r => r.v === k).length;
-    const [emo, msg] = pct >= 90 ? ['🏆', 'Mandou muito!'] : pct >= 70 ? ['🎉', 'Muito bem!'] : pct >= 40 ? ['💪', 'Bom caminho!'] : ['🌱', 'Continue praticando!'];
+    const [, emo, title, sub] = TIERS.find(t => pct >= t[0]);
+    const stars = Math.round(pct / 20);
+    const cmp = prev == null ? '🎖 Sua primeira prova nessa música!' : pct > prev ? `🚀 Novo recorde! Antes: ${fmtNota(prev)}` : pct === prev ? `Igualou seu recorde (${fmtNota(prev)})` : `Seu recorde: ${fmtNota(prev)} — você consegue bater!`;
+    const C = 2 * Math.PI * 70;
     $('exCount').textContent = '';
-    $('exEnd').innerHTML = `<div class="ex-score"><div class="ex-emo">${emo}</div><b>${pct}%</b><span>${msg}${best && results.length > 1 ? ' · nova melhor nota!' : ''}</span></div>
-      <div class="ex-tally"><span>✅ ${n('ok')} acertos</span><span>🟡 ${n('meio')} quase</span><span>❌ ${n('erro') + n('pulo')} erros</span></div>
-      <div class="ex-list glass">${results.map(r => `<div class="ex-li"><span>${VERDICT[r.v][0]}</span><div><b>${esc(r.p.en)}</b><small>${esc(r.p.pt)}</small></div></div>`).join('')}</div>
-      <div class="muted small">As frases que você errou vão aparecer de novo nos seus estudos.</div>
-      <button class="btn primary big" id="exAgain">🔁 Fazer outra prova</button>
-      <button class="btn" id="exDone">Voltar ao início</button>`;
+    $('exEnd').innerHTML = `
+      <div class="ex-emo">${emo}</div>
+      <div class="ex-ring"><svg viewBox="0 0 160 160"><defs><linearGradient id="exGrad" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="var(--accent)"/><stop offset="1" stop-color="var(--accent2)"/></linearGradient></defs>
+        <circle cx="80" cy="80" r="70" class="bg"/><circle cx="80" cy="80" r="70" class="fg" stroke-dasharray="${C}" stroke-dashoffset="${C}"/></svg>
+        <div class="ex-ring-in"><small>NOTA</small><b id="exNota">0</b><span id="exPct">0% de acerto</span></div></div>
+      <div class="ex-stars">${[0, 1, 2, 3, 4].map(k => `<i class="${k < stars ? 'on' : ''}" style="animation-delay:${1.1 + k * 0.15}s">★</i>`).join('')}</div>
+      <h2 class="ex-title">${title}</h2>
+      <div class="muted">${sub}</div>
+      <div class="ex-cmp ${best && prev != null ? 'rec' : ''}">${cmp}</div>
+      <div class="ex-tally"><span>✅ ${n('ok')} certas</span><span>🟡 ${n('meio')} quase</span><span>❌ ${n('erro') + n('pulo')} erradas</span></div>
+      <button class="btn primary big" id="exShare">📤 Compartilhar minha nota</button>
+      <div class="row" style="margin-top:0"><button class="btn" id="exAgain">🔁 Nova prova</button><button class="btn" id="exDone">🏠 Início</button></div>
+      <details class="ex-review glass"><summary>Ver as respostas (${results.length} frases)</summary>
+        ${results.map(r => `<div class="ex-li"><span>${VERDICT[r.v][0]}</span><div><b>${esc(r.p.en)}</b><small>${esc(r.p.pt)}</small>${r.ans ? `<small class="you">Você: ${esc(r.ans)}</small>` : ''}</div></div>`).join('')}
+        <div class="muted small" style="padding:8px 0 4px">As frases que você errou vão aparecer de novo nos seus estudos.</div></details>`;
     showPart('exEnd');
-    if (pct >= 70) window.confetti?.(['🏅', '🎉', '⭐', '📝']);
+    // anel enche e a nota sobe contando
+    requestAnimationFrame(() => { $('exEnd').querySelector('.fg').style.strokeDashoffset = C * (1 - pct / 100); });
+    const t0 = performance.now(), dur = 1300;
+    const tick = t => { const k = Math.min(1, (t - t0) / dur), e = 1 - Math.pow(1 - k, 3), v = pct * e;
+      if (!$('exNota')) return;
+      $('exNota').textContent = k < 1 ? fmtNota(Math.round(v)) : nota; $('exPct').textContent = `${Math.round(v)}% de acerto`;
+      if (k < 1) requestAnimationFrame(tick); };
+    requestAnimationFrame(tick);
+    setTimeout(() => {
+      fanfare(pct >= 50); navigator.vibrate?.(pct >= 70 ? [40, 60, 40] : 30);
+      if (pct >= 95) window.confetti?.(['🏆', '⭐', '🎉', '💯', '🎵']);
+      else if (pct >= 50) window.confetti?.(['🎉', '⭐', '📝', '✨']);
+    }, dur);
     $('exAgain').onclick = start; $('exDone').onclick = close;
+    $('exShare').onclick = () => window.openShare?.('exam', s, { score: nota, pct, n: results.length });
   }
   function close() {
     stopMic(); speechSynthesis?.cancel();

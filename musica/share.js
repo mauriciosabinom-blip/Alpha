@@ -88,6 +88,7 @@ async function buildShareImage(kind, song, extra = {}) {
     mastered: ['🏆 Dominei esta música!', null],
     goal: [`🎯 Meta do dia batida!`, `${S.daily.done} frases em inglês hoje`],
     karaoke: [`🎤 Nota de pronúncia: ${extra.score}`, extra.score >= 90 ? 'Pronúncia de nativo!' : extra.score >= 70 ? 'Mandei bem no karaokê!' : 'Treinando no karaokê'],
+    exam: [`📝 Tirei nota ${extra.score} na prova!`, `${extra.pct}% de acerto em ${extra.n} frases traduzidas`],
     progress: [`Já aprendi ${st?.pct ?? 0}% desta música`, null]
   }[kind] || ['Aprendendo inglês com música', null];
   let y = 960;
@@ -104,7 +105,7 @@ async function buildShareImage(kind, song, extra = {}) {
   const boxes = [
     st ? [`${st.mastered}/${st.total}`, 'frases dominadas'] : [String(S.daily.done), 'frases hoje'],
     [`${streak}🔥`, streak === 1 ? 'dia seguido' : 'dias seguidos'],
-    kind === 'karaoke' ? [`${extra.score}`, 'nota de pronúncia'] : [`${st?.pct ?? 0}%`, 'da letra']
+    kind === 'karaoke' ? [`${extra.score}`, 'nota de pronúncia'] : kind === 'exam' ? [`${extra.score}`, 'nota na prova'] : [`${st?.pct ?? 0}%`, 'da letra']
   ];
   const bw = 290, gap = 30, bx0 = (W - (bw * 3 + gap * 2)) / 2, by = Math.max(y + 70, 1330);
   boxes.forEach(([big, small], i) => {
@@ -137,7 +138,7 @@ async function openShare(kind, song, extra) {
     const blob = await buildShareImage(kind, song, extra);
     shareFile = new File([blob], `refrao-${(song?.title || 'resultado').toLowerCase().replace(/[^a-z0-9]+/g, '-')}.png`, { type: 'image/png' });
     shareText = song
-      ? `${kind === 'mastered' ? 'Dominei' : kind === 'karaoke' ? `Tirei ${extra.score} de pronúncia cantando` : 'Estou aprendendo inglês com'} "${song.title}" (${song.artist}) no Refrão 🎧 Aprenda também: ${SALES_URL}`
+      ? `${kind === 'mastered' ? 'Dominei' : kind === 'karaoke' ? `Tirei ${extra.score} de pronúncia cantando` : kind === 'exam' ? `Tirei nota ${extra.score} na prova de tradução de` : 'Estou aprendendo inglês com'} "${song.title}" (${song.artist}) no Refrão 🎧 Aprenda também: ${SALES_URL}`
       : `Estou aprendendo inglês com música no Refrão 🎧 Aprenda também: ${SALES_URL}`;
     $('shareImg').src = URL.createObjectURL(blob);
     $('shareGo').disabled = false; $('shareGo').textContent = '📤 Compartilhar';
