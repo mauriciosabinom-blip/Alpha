@@ -225,31 +225,6 @@ const Social = (() => {
     if (t.dataset.chat) openChat(t.dataset.chat);
   };
   $('chatBack').onclick = () => { chatWith = null; show('social'); renderSocial(); };
-  // arrastar para a direita volta para a lista de conversas (como no WhatsApp)
-  (() => {
-    const el = $('chat'); let x0 = null, y0 = 0, dx = 0, mode = null;
-    el.addEventListener('touchstart', e => {
-      if (e.touches.length !== 1 || e.target.closest('input,textarea,[contenteditable],input[type=range],#emojiPanel,.menu,audio,.no-swipe')) { x0 = null; return; }
-      x0 = e.touches[0].clientX; y0 = e.touches[0].clientY; dx = 0; mode = null;
-    }, { passive: true });
-    el.addEventListener('touchmove', e => {
-      if (x0 === null) return;
-      const mx = e.touches[0].clientX - x0, my = e.touches[0].clientY - y0;
-      if (!mode) { if (Math.abs(mx) < 12 && Math.abs(my) < 12) return; mode = mx > 0 && Math.abs(mx) > Math.abs(my) * 1.4 ? 'back' : 'scroll'; }
-      if (mode !== 'back') return;
-      dx = Math.max(0, mx); el.style.transition = 'none'; el.style.transform = `translateX(${dx}px)`;
-      el.style.boxShadow = '-20px 0 40px #0008';
-    }, { passive: true });
-    const end = () => {
-      if (x0 === null) return; x0 = null;
-      if (mode !== 'back') return;
-      const go = dx > Math.min(120, innerWidth * 0.3);
-      el.style.transition = 'transform .22s ease-out';
-      el.style.transform = go ? `translateX(${innerWidth}px)` : '';
-      setTimeout(() => { el.style.transition = ''; el.style.transform = ''; el.style.boxShadow = ''; if (go) $('chatBack').click(); }, go ? 200 : 230);
-    };
-    el.addEventListener('touchend', end); el.addEventListener('touchcancel', end);
-  })();
   $('chatForm').onsubmit = e => { e.preventDefault(); send(); };
   $('chatInput').oninput = () => { $('chatWarn').textContent = ''; };
   $('chatMenu').onclick = () => $('chatMenuBox').classList.toggle('hidden');

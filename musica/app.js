@@ -478,6 +478,7 @@ function endSession() {
   if (current === 'home') { renderHome(); window.Tour?.maybe(); } else if (current === 'lyrics') renderLyrics();
 }
 function nextCard(forced) {
+  if (!session) return; // fechou o cartão logo depois de responder
   if (session.left <= 0) {
     const n = session.done;
     endSession(); toast(n ? `Pronto! ${n} frase${n > 1 ? 's' : ''} treinada${n > 1 ? 's' : ''} ✓` : 'Pronto!'); return;
