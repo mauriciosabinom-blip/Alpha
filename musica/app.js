@@ -141,7 +141,7 @@ function applyTheme(song) {
 /* ---------------- telas ---------------- */
 const SCREENS = ['home', 'pick', 'confirm', 'loading', 'lyrics', 'settings', 'login', 'social', 'chat', 'profile'];
 let current = 'home';
-function show(id) { SCREENS.forEach(s => $(s).classList.toggle('hidden', s !== id)); current = id; window.scrollTo(0, 0); if (id === 'home') renderHome(); }
+function show(id) { SCREENS.forEach(s => $(s).classList.toggle('hidden', s !== id)); current = id; window.scrollTo(0, 0); if (id === 'home') { renderHome(); window.Tour?.maybe(); } }
 
 /* ---------------- dia / sequência ---------------- */
 function rollDay() {
@@ -211,7 +211,7 @@ function renderHome() {
     const demo = { title: 'Refrão', artist: 'music' };
     hero.innerHTML = `<div class="hero-empty"><div class="art" style="${bgStyle(demo)}"></div>
       <h2>Sua trilha para o inglês</h2><div class="artist">Escolha uma música e aprenda frase por frase 🎶</div></div>`;
-    $('btnStudy').disabled = true; $('btnLyrics').disabled = true; $('btnKaraoke').disabled = true; $('miniStats').innerHTML = '';
+    $('btnStudy').disabled = true; $('btnLyrics').disabled = true; $('btnKaraoke').disabled = true; $('btnExam').disabled = true; $('miniStats').innerHTML = '';
   } else {
     const st = songStats(song);
     hero.innerHTML = `<div class="vinyl-wrap has-sleeve">
@@ -226,7 +226,7 @@ function renderHome() {
     const fresh = song.phrases.filter(p => !p.seen).length;
     $('miniStats').innerHTML = `<div class="glass"><b>${st.mastered}</b><span>🏆 dominadas</span></div>
       <div class="glass"><b>${learning}</b><span>🌱 aprendendo</span></div><div class="glass"><b>${fresh}</b><span>✨ novas</span></div>`;
-    $('btnStudy').disabled = false; $('btnLyrics').disabled = false; $('btnKaraoke').disabled = false;
+    $('btnStudy').disabled = false; $('btnLyrics').disabled = false; $('btnKaraoke').disabled = false; $('btnExam').disabled = false;
   }
 }
 
@@ -475,7 +475,7 @@ function startSession(count, forced) {
 function endSession() {
   ytStop(); $('ytBox').classList.add('collapsed');
   $('card').classList.add('hidden'); session = null; hideWordPop(); speechSynthesis?.cancel();
-  if (current === 'home') renderHome(); else if (current === 'lyrics') renderLyrics();
+  if (current === 'home') { renderHome(); window.Tour?.maybe(); } else if (current === 'lyrics') renderLyrics();
 }
 function nextCard(forced) {
   if (session.left <= 0) {
@@ -493,7 +493,10 @@ function nextCard(forced) {
   recent = [pair[1].id, ...recent.filter(x => x !== pair[1].id)].slice(0, 3);
   renderCard();
   if (S.settings.speak) speak(pair[1].en);
+  // 1º cartão da vida: mostra como arrastar
+  if (!S.cardTipDone) $('cardCoach').classList.remove('hidden');
 }
+$('coachOk').onclick = () => { $('cardCoach').classList.add('hidden'); S.cardTipDone = true; save(); };
 
 function hiddenSet(p) {
   const words = p.pt.split(/\s+/).filter(Boolean);
@@ -670,7 +673,7 @@ $('hero').onclick = e => {
 };
 $('btnPick').onclick = () => openPick(false);
 $('btnLyrics').onclick = () => { renderLyrics(); show('lyrics'); };
-const APP_VERSION = '2026.11.23 · v26';
+const APP_VERSION = '2026.11.23 · v31';
 function renderStreakBox() {
   backfillDays();
   const set = new Set(S.days || []), names = ['dom', 'seg', 'ter', 'qua', 'qui', 'sex', 'sáb'];
@@ -946,6 +949,7 @@ function maybeFlash() {
   rollDay();
   if (!S.daily.chosen && current !== 'confirm' && current !== 'loading') { if (!session) openPick(true); return; }
   if (!S.settings.unlock || session || !S.songs[S.activeSongId]) return;
+  if (!$('exam').classList.contains('hidden') || window.Tour?.running) return; // fazendo prova / vendo o tour
   if (['pick', 'confirm', 'loading', 'settings', 'social', 'chat', 'login', 'profile'].includes(current)) return;
   startSession(S.settings.burst);
 }

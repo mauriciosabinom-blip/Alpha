@@ -14,7 +14,7 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,500;9..144,600;9..144,700;9..144,800&family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="style.css?v=30">
+<link rel="stylesheet" href="style.css?v=31">
 </head>
 <body>
 <div id="bgArt"></div><div id="bgShade"></div>
@@ -153,6 +153,7 @@
       <button class="btn" id="btnKaraoke">🎤 Karaokê</button>
       <button class="btn" id="btnPick">🎵 Trocar</button>
     </div>
+    <button class="btn exam-btn" id="btnExam">📝 Modo prova <small>teste o que você aprendeu</small></button>
   </div>
 
   <div class="glass panel">
@@ -283,6 +284,7 @@
     <div class="week" id="streakWeek"></div>
     <div class="muted small" id="streakTotal"></div>
   </div>
+  <button class="btn" id="btnTour" style="width:100%;margin-top:14px">🧭 Ver o tour do app de novo</button>
   <button class="btn danger" id="btnReset">Apagar tudo</button>
   <p class="muted small center" id="appVersion" style="margin-top:14px"></p>
   <p class="muted small" style="line-height:1.5;margin-top:18px">Seus dados ficam salvos só neste celular. Letras: lrclib.net · Capas: iTunes · Tradução automática: Google Tradutor (corrija tocando em ✎ no cartão).</p>
@@ -337,11 +339,65 @@
     <button class="btn" id="btnNext">Próxima ›</button>
   </div>
   <div class="swipe-hint">← arraste o cartão →</div>
+  <div id="cardCoach" class="coach hidden">
+    <div class="coach-demo"><div class="coach-card">I want it that way<small>Eu quero assim</small></div><div class="coach-hand">👆</div></div>
+    <h3>Arraste o cartão</h3>
+    <div class="coach-rows">
+      <div><b class="g">→ Direita</b> = entendi a frase</div>
+      <div><b class="r">← Esquerda</b> = ainda não peguei (ela volta logo)</div>
+      <div><b>Toque numa palavra</b> em inglês para ver o significado</div>
+      <div><b>?</b> mostra a tradução escondida · <b>🔊</b> ouve a frase</div>
+    </div>
+    <button class="btn primary big" id="coachOk">Entendi, bora!</button>
+  </div>
   <div class="card-buttons">
     <button class="btn no" id="btnNo">✗<span>Ainda não</span></button>
     <button class="btn doubt" id="btnDoubt">?<span>Dúvida</span></button>
     <button class="btn yes" id="btnYes">✓<span>Entendi</span></button>
   </div>
+</div>
+
+<!-- ===== MODO PROVA (overlay) ===== -->
+<div id="exam" class="overlay hidden">
+  <div class="art-bg" id="exArt"></div><div class="art-shade"></div>
+  <div class="card-top"><button class="icon-btn" id="exClose" aria-label="Fechar">✕</button><div class="card-meta" style="justify-content:center"><b>📝 Modo prova</b></div><div id="exCount" class="chip small"></div></div>
+
+  <div id="exIntro" class="k-intro">
+    <h2 id="exTitle"></h2><div class="muted" id="exArtist"></div>
+    <div class="k-how glass">
+      <div>🎧 Você <b>ouve a frase em inglês</b> — sem tradução na tela.</div>
+      <div>✍️ <b>Digite</b> o que ela significa em português, ou toque em <b>🎙 Falar</b> e diga em voz alta.</div>
+      <div>✅ O Refrão confere na hora: <b>acertou</b>, <b>faz sentido</b> ou <b>errou</b> — e mostra a tradução certa.</div>
+    </div>
+    <div class="seg seg3" id="exSize" role="radiogroup" aria-label="Quantas frases">
+      <button role="radio" data-n="5" aria-checked="false">5 frases</button>
+      <button role="radio" data-n="10" aria-checked="true">10 frases</button>
+      <button role="radio" data-n="20" aria-checked="false">20 frases</button>
+    </div>
+    <div class="muted small" id="exBest"></div>
+    <button class="btn primary big" id="exGo">▶ Começar a prova</button>
+  </div>
+
+  <div id="exStage" class="card-body ex-stage hidden">
+    <div class="banner">Traduza para o português</div>
+    <div id="exEn" class="en"></div>
+    <div class="divider"><div class="tools">
+      <button class="icon-btn" id="exSpeak" aria-label="Ouvir">🔊</button>
+      <button class="icon-btn" id="exSlow" aria-label="Ouvir devagar">🐢</button>
+    </div></div>
+    <div id="exAsk">
+      <textarea id="exInput" class="input ex-input" rows="2" placeholder="Escreva aqui o que a frase quer dizer…" autocomplete="off" autocapitalize="sentences" spellcheck="false"></textarea>
+      <div class="row">
+        <button class="btn" id="exMic">🎙 Falar</button>
+        <button class="btn primary" id="exCheck">Conferir</button>
+      </div>
+      <button class="linkbtn ex-skip" id="exSkip">Não sei — mostrar a resposta</button>
+    </div>
+    <div id="exResult" class="ex-result hidden"></div>
+  </div>
+  <div id="exNextBar" class="ex-nextbar hidden"><button class="btn primary big" id="exNext">Próxima ›</button></div>
+
+  <div id="exEnd" class="k-intro hidden"></div>
 </div>
 
 <!-- word popover -->
@@ -549,15 +605,17 @@
 <script src="vendor/supabase.js?v=18"></script>
 <script src="config.js?v=18"></script>
 <script src="moderacao.js?v=18"></script>
-<script src="app.js?v=28"></script>
+<script src="app.js?v=31"></script>
 <script src="share.js?v=27"></script>
 <script src="karaoke.js?v=23"></script>
 <script src="social.js?v=22"></script>
 <script src="duet.js?v=20"></script>
 <script src="push.js?v=23"></script>
-<script src="sync.js?v=25"></script>
+<script src="sync.js?v=31"></script>
 <script src="chatplus.js?v=23"></script>
 <script src="profile.js?v=24"></script>
 <script src="access.js?v=30"></script>
+<script src="prova.js?v=31"></script>
+<script src="tour.js?v=31"></script>
 </body>
 </html>

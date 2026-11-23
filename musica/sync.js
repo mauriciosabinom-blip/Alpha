@@ -32,6 +32,8 @@ const Sync = (() => {
     const seen = new Set(); out.karaoke = [...(cloud.karaoke || []), ...(local.karaoke || [])]
       .filter(k => { const key = k.songId + k.date; if (seen.has(key)) return false; seen.add(key); return true; }).sort((a, b) => a.date - b.date);
     // dias estudados: junta as listas dos dois lados (nenhum dia se perde)
+    // tour e dica do cartão: visto em qualquer aparelho = visto
+    for (const k of ['tourDone', 'cardTipDone']) out[k] = !!(local[k] || cloud[k]);
     out.days = [...new Set([...(cloud.days || []), ...(local.days || [])])].sort().slice(-800);
     const [sa, sb2] = [local.streak || {}, cloud.streak || {}];
     out.streak = (sa.last || '') >= (sb2.last || '') ? sa : sb2;
