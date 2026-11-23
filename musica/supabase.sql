@@ -657,3 +657,20 @@ end;
 $$;
 revoke all on function public.admin_pedidos(), public.admin_usuarios(text), public.admin_liberar(text, text, bigint), public.admin_recusar(bigint), public.admin_remover_acesso(text) from public, anon;
 grant execute on function public.admin_pedidos(), public.admin_usuarios(text), public.admin_liberar(text, text, bigint), public.admin_recusar(bigint), public.admin_remover_acesso(text) to authenticated;
+
+-- ---------- Chat: confirmação de envio, entrega e leitura (claves de sol 𝄞) ----------
+-- delivered_at = chegou no app do amigo · read_at = ele abriu a conversa.
+alter table public.messages add column if not exists delivered_at timestamptz;
+grant update (read_at, delivered_at) on public.messages to authenticated;
+create or replace function public.messages_receipts() returns trigger language plpgsql as $$
+begin
+  -- o horário vem do servidor, e nunca volta atrás
+  new.delivered_at := case when old.delivered_at is not null then old.delivered_at when new.delivered_at is not null then now() end;
+  new.read_at := case when old.read_at is not null then old.read_at when new.read_at is not null then now() end;
+  if new.read_at is not null and new.delivered_at is null then new.delivered_at := new.read_at; end if;
+  return new;
+end $$;
+drop trigger if exists messages_receipts on public.messages;
+create trigger messages_receipts before update of read_at, delivered_at on public.messages
+  for each row execute function public.messages_receipts();
+update public.messages set delivered_at = read_at where delivered_at is null and read_at is not null;

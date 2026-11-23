@@ -7,6 +7,11 @@
 
 const Social = (() => {
   let me = null, live = null, friendships = [], profiles = {}, lastByFriend = {}, unread = {}, chatWith = null, chatMsgs = [], busy = false;
+  // recibos: ⏳ enviando · 𝄞 enviada · 𝄞𝄞 chegou · 𝄞𝄞 colorida = vista
+  const rcState = m => m.pending ? 'pending' : m.read_at ? 'read' : m.delivered_at ? 'delivered' : 'sent';
+  const RC_LABEL = { pending: 'Enviando…', sent: 'Enviada', delivered: 'Entregue', read: 'Vista' };
+  const rcHtml = m => { const st = rcState(m); return `<span class="rc ${st}" title="${RC_LABEL[st]}" aria-label="${RC_LABEL[st]}">${st === 'delivered' || st === 'read' ? '<i></i><i></i>' : '<i></i>'}</span>`; };
+  const nowIso = () => new Date().toISOString();
   const fmtTime = iso => new Date(iso).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
   const fmtDay = iso => { const d = new Date(iso), t = new Date(); const y = new Date(Date.now() - 864e5);
     return d.toDateString() === t.toDateString() ? 'Hoje' : d.toDateString() === y.toDateString() ? 'Ontem' : d.toLocaleDateString('pt-BR', { day: '2-digit', month: 'short' }); };
@@ -46,6 +51,9 @@ const Social = (() => {
       if (m.receiver === me.id && !m.read_at) unread[f] = (unread[f] || 0) + 1;
     }
     await loadProfiles([...friendships.map(other), me.id]);
+    // tudo que chegou para mim e ainda não foi marcado: "entregue"
+    if ((ms.data || []).some(m => m.receiver === me.id && !m.delivered_at))
+      sb.from('messages').update({ delivered_at: nowIso() }).eq('receiver', me.id).is('delivered_at', null).then(() => {});
     renderBadge();
     if (current === 'social') renderSocial();
   }
@@ -60,6 +68,7 @@ const Social = (() => {
     sb.realtime.setAuth(session.access_token);
     live = sb.channel('me-' + me.id)
       .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'messages', filter: `receiver=eq.${me.id}` }, p => onMessage(p.new))
+      .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'messages', filter: `sender=eq.${me.id}` }, p => onReceipt(p.new))
       .on('postgres_changes', { event: '*', schema: 'public', table: 'friendships' }, async p => {
         const f = p.new && p.new.id ? p.new : null;
         if (p.eventType === 'INSERT' && f?.addressee === me.id) { await loadProfiles([f.requester]); toast(`👋 @${who(f.requester).handle} quer ser seu amigo`, 4000); }
@@ -73,14 +82,27 @@ const Social = (() => {
     lastByFriend[m.sender] = m;
     if (current === 'chat' && chatWith === m.sender) {
       chatMsgs.push(m); renderChat(true);
-      sb.from('messages').update({ read_at: new Date().toISOString() }).eq('id', m.id).then(() => {});
+      sb.from('messages').update({ read_at: nowIso(), delivered_at: nowIso() }).eq('id', m.id).then(() => {});
     } else {
+      sb.from('messages').update({ delivered_at: nowIso() }).eq('id', m.id).then(() => {});
       window.Push?.chime();
       unread[m.sender] = (unread[m.sender] || 0) + 1; renderBadge();
       if (current === 'social') renderSocial();
       const preview = window.Duet?.isInvite(m.body) ? '🎤 te convidou para cantar junto!' : m.body.slice(0, 60);
       toast(`💬 @${who(m.sender).handle}: ${preview}`, 4500);
     }
+  }
+
+  // o amigo recebeu / viu uma mensagem minha: atualiza as claves sem redesenhar a conversa
+  function onReceipt(m) {
+    const cur = chatMsgs.find(x => x.id === m.id);
+    if (cur) {
+      cur.delivered_at = m.delivered_at; cur.read_at = m.read_at;
+      const el = $('chatList').querySelector(`[data-mid="${m.id}"] .rc`);
+      if (el) el.outerHTML = rcHtml(cur);
+    }
+    const last = lastByFriend[m.receiver];
+    if (last?.id === m.id) { last.delivered_at = m.delivered_at; last.read_at = m.read_at; if (current === 'social') renderSocial(); }
   }
 
   /* ---------- tela: amigos e conversas ---------- */
@@ -102,7 +124,7 @@ const Social = (() => {
     $('socialFriends').innerHTML = `<h4>Conversas</h4>` + (friends.length ? friends.map(id => { const p = who(id), last = lastByFriend[id], n = unread[id] || 0;
       const prev = last ? (window.Duet?.isInvite(last.body) ? '🎤 Convite para cantar' : (last.sender === me.id ? 'Você: ' : '') + (last.kind === 'sticker' ? last.body + ' Figurinha' : last.body)) : 'Diga oi! 👋';
       return `<button class="person glass chatrow" data-chat="${esc(id)}">${avatar(p)}<div class="pinfo"><b>${esc(p.name)} <span class="muted small">@${esc(p.handle)}</span></b>
-        <span class="muted small ell">${esc(prev)}</span></div>${last ? `<span class="muted small">${fmtTime(last.created_at)}</span>` : ''}${n ? `<span class="badge">${n}</span>` : ''}</button>`; }).join('')
+        <span class="muted small ell">${last && last.sender === me.id ? rcHtml(last) : ''}${esc(prev)}</span></div>${last ? `<span class="muted small">${fmtTime(last.created_at)}</span>` : ''}${n ? `<span class="badge">${n}</span>` : ''}</button>`; }).join('')
       : `<div class="empty-social muted">Nenhum amigo ainda. Busque alguém pelo @usuário aqui em cima 🔎</div>`);
     $('socialSent').innerHTML = outgoing.length ? `<h4>Pedidos enviados</h4>` + outgoing.map(f => { const p = who(f.addressee);
       return `<div class="person glass">${avatar(p)}<div class="pinfo"><b>${esc(p.name)}</b><span class="muted small">@${esc(p.handle)} · aguardando</span></div>
@@ -139,7 +161,7 @@ const Social = (() => {
     if (error) { $('chatList').innerHTML = `<div class="muted small center">${esc(errText(error))}</div>`; return; }
     chatMsgs = data || []; renderChat(true);
     if (unread[id]) {
-      await sb.from('messages').update({ read_at: new Date().toISOString() }).eq('sender', id).eq('receiver', me.id).is('read_at', null);
+      await sb.from('messages').update({ read_at: nowIso(), delivered_at: nowIso() }).eq('sender', id).eq('receiver', me.id).is('read_at', null);
       unread[id] = 0; renderBadge();
     }
   }
@@ -150,7 +172,7 @@ const Social = (() => {
       const mine = m.sender === me.id;
       const inner = window.Duet?.isInvite(m.body) ? window.Duet.inviteHtml(m, mine) : (window.ChatPlus ? ChatPlus.render(m) : esc(m.body));
       const bare = window.ChatPlus?.isMediaOnly(m) ? ' bare' : '';
-      return `${sep}<div class="bubble ${mine ? 'mine' : ''}${bare}">${inner}<span class="time">${fmtTime(m.created_at)}${mine && m.read_at ? ' ✓✓' : ''}</span></div>`;
+      return `${sep}<div class="bubble ${mine ? 'mine' : ''}${bare}" data-mid="${esc(m.id)}">${inner}<span class="time">${fmtTime(m.created_at)}${mine ? rcHtml(m) : ''}</span></div>`;
     }).join('') : `<div class="empty-social muted">Comecem a conversa! Só texto — sem links nem palavrões 🙂</div>`;
     if (scroll) { const l = $('chatList'); l.scrollTop = l.scrollHeight; }
   }
@@ -162,9 +184,14 @@ const Social = (() => {
     if (window.temPalavrao?.(body)) { warn.textContent = '🚫 Essa mensagem tem palavras não permitidas.'; return false; }
     warn.textContent = '';
     if (!silent) { $('chatInput').value = ''; window.ChatPlus?.syncComposer(); }
-    const { data, error } = await sb.from('messages').insert({ sender: me.id, receiver: chatWith, body }).select().single();
-    if (error) { warn.textContent = '🚫 ' + errText(error); if (!silent) { $('chatInput').value = body; window.ChatPlus?.syncComposer(); } return false; }
-    chatMsgs.push(data); lastByFriend[chatWith] = data; renderChat(true);
+    // aparece na hora com a clave piscando (enviando…)
+    const to = chatWith, tmp = { id: 'tmp' + Date.now(), sender: me.id, receiver: to, body, kind: 'text', created_at: nowIso(), pending: true };
+    chatMsgs.push(tmp); renderChat(true);
+    const { data, error } = await sb.from('messages').insert({ sender: me.id, receiver: to, body }).select().single();
+    const k = chatMsgs.indexOf(tmp);
+    if (error) { if (k >= 0) chatMsgs.splice(k, 1); if (chatWith === to) renderChat(false); warn.textContent = '🚫 ' + errText(error); if (!silent) { $('chatInput').value = body; window.ChatPlus?.syncComposer(); } return false; }
+    if (k >= 0) chatMsgs[k] = data; lastByFriend[to] = data;
+    if (chatWith === to) renderChat(true);
     return true;
   }
   // áudio, figurinha e GIF
@@ -198,6 +225,31 @@ const Social = (() => {
     if (t.dataset.chat) openChat(t.dataset.chat);
   };
   $('chatBack').onclick = () => { chatWith = null; show('social'); renderSocial(); };
+  // arrastar para a direita volta para a lista de conversas (como no WhatsApp)
+  (() => {
+    const el = $('chat'); let x0 = null, y0 = 0, dx = 0, mode = null;
+    el.addEventListener('touchstart', e => {
+      if (e.touches.length !== 1 || e.target.closest('input,textarea,[contenteditable],input[type=range],#emojiPanel,.menu,audio,.no-swipe')) { x0 = null; return; }
+      x0 = e.touches[0].clientX; y0 = e.touches[0].clientY; dx = 0; mode = null;
+    }, { passive: true });
+    el.addEventListener('touchmove', e => {
+      if (x0 === null) return;
+      const mx = e.touches[0].clientX - x0, my = e.touches[0].clientY - y0;
+      if (!mode) { if (Math.abs(mx) < 12 && Math.abs(my) < 12) return; mode = mx > 0 && Math.abs(mx) > Math.abs(my) * 1.4 ? 'back' : 'scroll'; }
+      if (mode !== 'back') return;
+      dx = Math.max(0, mx); el.style.transition = 'none'; el.style.transform = `translateX(${dx}px)`;
+      el.style.boxShadow = '-20px 0 40px #0008';
+    }, { passive: true });
+    const end = () => {
+      if (x0 === null) return; x0 = null;
+      if (mode !== 'back') return;
+      const go = dx > Math.min(120, innerWidth * 0.3);
+      el.style.transition = 'transform .22s ease-out';
+      el.style.transform = go ? `translateX(${innerWidth}px)` : '';
+      setTimeout(() => { el.style.transition = ''; el.style.transform = ''; el.style.boxShadow = ''; if (go) $('chatBack').click(); }, go ? 200 : 230);
+    };
+    el.addEventListener('touchend', end); el.addEventListener('touchcancel', end);
+  })();
   $('chatForm').onsubmit = e => { e.preventDefault(); send(); };
   $('chatInput').oninput = () => { $('chatWarn').textContent = ''; };
   $('chatMenu').onclick = () => $('chatMenuBox').classList.toggle('hidden');
