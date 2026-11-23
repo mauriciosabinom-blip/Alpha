@@ -212,7 +212,8 @@ const ChatPlus = (() => {
     a.onplay = () => (btn.textContent = '❚❚'); a.onpause = () => (btn.textContent = '▶');
     a.ontimeupdate = () => { if (a.duration) { bar.style.width = (a.currentTime / a.duration * 100) + '%'; time.textContent = fmt(a.currentTime); } };
     a.onended = () => { btn.textContent = '▶'; bar.style.width = '0'; time.textContent = fmt(+btn.dataset.dur || 0); playing = null; };
-    a.play().catch(() => { btn.textContent = '▶'; toast('Toque de novo para ouvir.'); });
+    a.onerror = () => { btn.textContent = '▶'; playing = null; toast(/\.webm$|\.ogg$/.test(path) ? 'Esse áudio foi gravado num Android em um formato que este aparelho não toca. Atualize o iPhone/iPad (iOS 17.4+).' : 'Não consegui tocar esse áudio.', 5000); };
+    a.play().catch(err => { if (err?.name === 'NotAllowedError') { btn.textContent = '▶'; toast('Toque de novo para ouvir.'); } });
   }
   $('chatList').addEventListener('click', e => { const b = e.target.closest('[data-audio]'); if (b) playAudio(b); });
 

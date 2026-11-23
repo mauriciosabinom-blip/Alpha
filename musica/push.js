@@ -9,6 +9,7 @@
 const Push = (() => {
   const FN = CFG.supabaseUrl ? CFG.supabaseUrl.replace(/\/$/, '') + '/functions/v1/notify' : null;
   const isIOS = /iPhone|iPad|iPod/.test(navigator.userAgent) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
+  const isAndroid = /Android/i.test(navigator.userAgent);
   const standalone = () => navigator.standalone === true || matchMedia('(display-mode: standalone)').matches;
   const supported = () => 'serviceWorker' in navigator && 'PushManager' in window && 'Notification' in window;
   const b64 = s => { const p = '='.repeat((4 - s.length % 4) % 4), raw = atob((s + p).replace(/-/g, '+').replace(/_/g, '/')); return Uint8Array.from(raw, c => c.charCodeAt(0)); };
@@ -25,9 +26,13 @@ const Push = (() => {
   const TEXT = {
     on: '✅ Ativadas — você recebe um aviso a cada mensagem nova.',
     off: 'Receba um aviso no celular quando chegar mensagem, mesmo com o app fechado.',
-    denied: '🚫 Bloqueadas nos ajustes do aparelho. Para ativar: Ajustes do iPhone → Notificações → Refrão.',
+    denied: isAndroid
+      ? '🚫 Bloqueadas. Para ativar: toque no cadeado 🔒 ao lado do endereço (ou ⋮ → Configurações do site) → Notificações → Permitir. Se instalou o app: Configurações do Android → Apps → Refrão → Notificações.'
+      : isIOS ? '🚫 Bloqueadas nos ajustes do aparelho. Para ativar: Ajustes do iPhone → Notificações → Refrão.'
+      : '🚫 Bloqueadas neste navegador. Clique no cadeado 🔒 ao lado do endereço e permita as notificações.',
     install: '📲 No iPhone/iPad, os avisos só funcionam com o Refrão instalado: toque em Compartilhar ⬆️ → “Adicionar à Tela de Início”, abra pelo ícone e entre na sua conta.',
-    unsupported: 'Este navegador não recebe notificações. No iPhone/iPad, use iOS 16.4 ou mais novo e o Refrão pelo ícone da Tela de Início.',
+    unsupported: isIOS ? 'Este aparelho não recebe notificações. No iPhone/iPad, use iOS 16.4 ou mais novo e o Refrão pelo ícone da Tela de Início.'
+      : 'Este navegador não recebe notificações. No Android, use o Chrome (ou o app instalado).',
     nologin: ''
   };
   async function render() {
@@ -129,9 +134,30 @@ const Push = (() => {
   $('notifYes').onclick = () => { $('notifSheet').classList.add('hidden'); if ($('notifSheet').dataset.mode === 'ask') enable(); };
   $('notifNo').onclick = () => { $('notifSheet').classList.add('hidden'); toast('Tudo bem! Dá para ativar depois em ⚙️ Ajustes.', 3500); };
 
+  /* ---------- instalar o app ----------
+   * Android/Chrome: o próprio navegador oferece "Instalar app" (beforeinstallprompt).
+   * iPhone/iPad: só pelo Safari → Compartilhar → Adicionar à Tela de Início (mostramos o passo a passo). */
+  let installEvt = null;
+  window.addEventListener('beforeinstallprompt', e => { e.preventDefault(); installEvt = e; renderInstall(); });
+  window.addEventListener('appinstalled', () => { installEvt = null; renderInstall(); toast('📲 Refrão instalado! Abra pelo ícone na sua tela.', 4500); });
+  const canInstall = () => !standalone() && (!!installEvt || isIOS);
+  function renderInstall() { $('installBox')?.classList.toggle('hidden', !canInstall()); }
+  async function install() {
+    if (installEvt) { installEvt.prompt(); const r = await installEvt.userChoice.catch(() => null); if (r?.outcome === 'accepted') installEvt = null; renderInstall(); return; }
+    if (isIOS) { // passo a passo do iPhone
+      $('notifIcon').textContent = '📲'; $('notifTitle').textContent = 'Instale o Refrão no seu iPhone';
+      $('notifText').textContent = 'Assim ele vira um app de verdade na sua tela e pode te avisar quando chegar mensagem.';
+      $('notifSteps').classList.remove('hidden'); $('notifYes').textContent = 'Entendi'; $('notifNo').classList.add('hidden');
+      $('notifSheet').dataset.mode = 'install'; $('notifSheet').classList.remove('hidden'); return;
+    }
+    toast(isAndroid ? 'No Chrome: toque em ⋮ (menu) → “Instalar app” ou “Adicionar à tela inicial”.' : 'No navegador, use o menu → “Instalar Refrão”.', 6000);
+  }
+  if ($('installBtn')) $('installBtn').onclick = install;
+  renderInstall();
+
   $('pushBtn').onclick = async () => ((await state()) === 'on' ? disable() : enable());
   $('pushBannerBtn').onclick = enable;
-  return { render, enable, forget, chime, state, maybeAsk };
+  return { render, enable, forget, chime, state, maybeAsk, install, isAndroid, isIOS };
 })();
 window.Push = Push;
 Push.render();

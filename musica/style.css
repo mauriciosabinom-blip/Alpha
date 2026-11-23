@@ -409,3 +409,6 @@ body:has(.sheet-backdrop:not(.hidden)) .toast{bottom:auto;top:max(70px,calc(env(
 .chat-title{cursor:pointer}
 .view-bio{margin:10px 0 4px;font-size:1.05rem}
 .view-song{margin:8px auto 16px;padding:8px 14px;border-radius:999px;background:var(--glass2);display:inline-block;font-size:.9rem}
+
+/* menu ⋯ da conversa por cima das mensagens */
+#chat > .chat-top{z-index:6}

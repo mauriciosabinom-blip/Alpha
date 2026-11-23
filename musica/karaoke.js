@@ -78,7 +78,7 @@ function startKaraoke(delayMs) {
   kLines.forEach(l => { l.heard = []; l.hit = null; l.score = 0; });
   kHeard = []; kCur = -1; kOn = true; kRenderLyrics(); kShow('kStage'); $('kLive').textContent = '';
   const off = kSong.yt.offset || 0, from = Math.max(0, kLines[0].start + off - 4);
-  if (!kRec) startMic(); // no toque (exigência do iPhone para o microfone)
+  if (!kRec) startMic(); // no toque (exigência do iPhone/Android para o microfone)
   clearInterval(kTimer);
   const go = () => { kSync = { base: from, p0: performance.now() }; kPlayer.seekTo(from, true); kPlayer.playVideo(); kTimer = setInterval(kTick, 120); };
   if (delayMs > 0) {
@@ -133,7 +133,7 @@ function startMic() {
     $('kLive').textContent = live ? '🎙 ' + live : '';
   };
   kRec.onerror = e => { if (e.error === 'not-allowed' || e.error === 'service-not-allowed') { kOn && toast('Permita o microfone para receber a nota 🎙', 4000); kRec = null; } };
-  kRec.onend = () => { if (kOn && kRec) try { kRec.start(); } catch (e) {} }; // o iPhone para sozinho; religa
+  kRec.onend = () => { if (kOn && kRec) try { kRec.start(); } catch (e) {} }; // iPhone e Android param sozinhos após silêncio; religa
   try { kRec.start(); } catch (e) {}
 }
 function stopAll() {
