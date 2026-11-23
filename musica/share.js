@@ -98,7 +98,7 @@ async function buildShareImage(kind, song, extra = {}) {
   if (head[1]) { y += 50; ctx.font = `600 40px ${sans}`; ctx.fillStyle = 'rgba(255,255,255,.9)'; ctx.fillText(head[1], W / 2, y); }
 
   // números
-  const streak = (S.streak.last === today() || S.streak.last === today(new Date(Date.now() - DAY))) ? S.streak.count : 0;
+  const streak = streakCount();
   const boxes = [
     st ? [`${st.mastered}/${st.total}`, 'frases dominadas'] : [String(S.daily.done), 'frases hoje'],
     [`${streak}🔥`, streak === 1 ? 'dia seguido' : 'dias seguidos'],

@@ -11,7 +11,10 @@ const Sync = (() => {
   function merge(local, cloud) {
     if (!cloud || !cloud.songs) return local;
     const hasLocal = local && Object.keys(local.songs || {}).length;
-    if (!hasLocal && !(local?.resetAt > (cloud.resetAt || 0))) return { ...defaults(), ...cloud };
+    if (!hasLocal && !(local?.resetAt > (cloud.resetAt || 0))) {
+      // aparelho ainda sem músicas: fica com a conta, mas sem perder os dias estudados aqui
+      return { ...defaults(), ...cloud, days: [...new Set([...(cloud.days || []), ...(local?.days || [])])].sort().slice(-800) };
+    }
     const newer = (cloud.updatedAt || 0) > (local.updatedAt || 0) ? cloud : local;
     const out = { ...defaults(), ...newer, settings: { ...defaults().settings, ...newer.settings } };
     const resetAt = Math.max(local.resetAt || 0, cloud.resetAt || 0);
@@ -28,8 +31,10 @@ const Sync = (() => {
     out.words = { ...(cloud.words || {}), ...(local.words || {}) };
     const seen = new Set(); out.karaoke = [...(cloud.karaoke || []), ...(local.karaoke || [])]
       .filter(k => { const key = k.songId + k.date; if (seen.has(key)) return false; seen.add(key); return true; }).sort((a, b) => a.date - b.date);
+    // dias estudados: junta as listas dos dois lados (nenhum dia se perde)
+    out.days = [...new Set([...(cloud.days || []), ...(local.days || [])])].sort().slice(-800);
     const [sa, sb2] = [local.streak || {}, cloud.streak || {}];
-    out.streak = (sa.last || '') === (sb2.last || '') ? { last: sa.last, count: Math.max(sa.count || 0, sb2.count || 0) } : ((sa.last || '') > (sb2.last || '') ? sa : sb2);
+    out.streak = (sa.last || '') >= (sb2.last || '') ? sa : sb2;
     const [da, dc] = [local.daily || {}, cloud.daily || {}];
     out.daily = da.date === dc.date ? { ...da, done: Math.max(da.done || 0, dc.done || 0), chosen: da.chosen || dc.chosen } : ((da.date || '') > (dc.date || '') ? da : dc);
     return out;

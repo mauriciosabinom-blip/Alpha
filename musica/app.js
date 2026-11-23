@@ -148,13 +148,37 @@ function rollDay() {
   const t = today();
   if (S.daily.date !== t) { S.daily = { date: t, done: 0, chosen: false }; save(); }
 }
+/* ---------- dias seguidos (ofensiva) ----------
+ * Guarda a LISTA de dias estudados (S.days). Assim, juntando iPhone, iPad, Safari e ícone,
+ * nenhum dia se perde (antes, só "quantos dias" + "último dia" — e um aparelho zerava o outro). */
+const dayStr = ts => today(new Date(ts));
+function addDay(d) {
+  if (!d) return;
+  S.days = S.days || [];
+  if (!S.days.includes(d)) { S.days.push(d); S.days.sort(); if (S.days.length > 800) S.days = S.days.slice(-800); }
+}
+// recupera os dias já estudados a partir do histórico (para quem usava antes desta correção)
+function backfillDays() {
+  const before = (S.days || []).length;
+  for (const s of Object.values(S.songs || {})) for (const p of s.phrases || []) if (p.last) addDay(dayStr(p.last));
+  for (const k of S.karaoke || []) if (k.date) addDay(dayStr(k.date));
+  if (S.daily?.date && S.daily.done > 0) addDay(S.daily.date);
+  const st = S.streak || {};
+  if (st.last && st.count > 0) for (let i = 0; i < Math.min(st.count, 400); i++) addDay(dayStr(new Date(st.last + 'T12:00:00').getTime() - i * DAY));
+  if ((S.days || []).length !== before) { try { localStorage.setItem(STORE_KEY, JSON.stringify(S)); } catch (e) {} }
+}
+// dias seguidos terminando hoje (ou ontem, se hoje ainda não estudou)
+function streakCount() {
+  const set = new Set(S.days || []);
+  let d = new Date(); if (!set.has(today(d))) d = new Date(Date.now() - DAY);
+  let n = 0;
+  while (set.has(today(d))) { n++; d = new Date(d.getTime() - DAY); }
+  return n;
+}
 function markStudied() {
   const t = today();
-  if (S.streak.last !== t) {
-    const y = today(new Date(Date.now() - DAY));
-    S.streak.count = S.streak.last === y ? S.streak.count + 1 : 1;
-    S.streak.last = t;
-  }
+  addDay(t);
+  S.streak = { count: streakCount(), last: t };
   S.daily.done++;
   if (S.daily.done === S.settings.goal) setTimeout(() => { confetti(['🔥', '🎯', '🎉']); toast(`Meta do dia batida! ${S.settings.goal} frases 🎯 · toque em 📤 para compartilhar`, 4500); }, 600);
 }
@@ -173,7 +197,9 @@ function levelBar(song) {
 }
 function renderHome() {
   rollDay();
-  $('streakChip').textContent = `🔥 ${S.streak.last === today() || S.streak.last === today(new Date(Date.now() - DAY)) ? S.streak.count : 0}`;
+  backfillDays();
+  $('streakChip').textContent = `🔥 ${streakCount()}`;
+  $('streakChip').title = `${streakCount()} dia(s) seguidos · ${(S.days || []).length} dias estudados no total`;
   const g = S.settings.goal, d = S.daily.done;
   $('goalText').textContent = `${d}/${g}`;
   $('goalRing').style.setProperty('--p', Math.min(100, d / g * 100));
