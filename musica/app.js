@@ -670,7 +670,18 @@ $('hero').onclick = e => {
 };
 $('btnPick').onclick = () => openPick(false);
 $('btnLyrics').onclick = () => { renderLyrics(); show('lyrics'); };
+const APP_VERSION = '2026.11.23 · v26';
+function renderStreakBox() {
+  backfillDays();
+  const set = new Set(S.days || []), names = ['dom', 'seg', 'ter', 'qua', 'qui', 'sex', 'sáb'];
+  $('streakNum').textContent = streakCount();
+  $('streakWeek').innerHTML = Array.from({ length: 7 }, (_, i) => { const d = new Date(Date.now() - (6 - i) * DAY), on = set.has(today(d));
+    return `<span class="wd ${on ? 'on' : ''}">${on ? '🔥' : '·'}<small>${i === 6 ? 'hoje' : names[d.getDay()]}</small></span>`; }).join('');
+  $('streakTotal').textContent = `${(S.days || []).length} dia(s) estudados no total`;
+  $('appVersion').textContent = 'Refrão · versão ' + APP_VERSION;
+}
 $('btnSettings').onclick = () => {
+  renderStreakBox();
   $('setGoal').value = S.settings.goal; $('setBurst').value = S.settings.burst;
   $('setUnlock').checked = S.settings.unlock; $('setSpeak').checked = S.settings.speak; $('setMix').checked = S.settings.mix;
   show('settings');

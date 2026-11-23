@@ -14,7 +14,7 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,500;9..144,600;9..144,700;9..144,800&family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="style.css?v=24">
+<link rel="stylesheet" href="style.css?v=26">
 </head>
 <body>
 <div id="bgArt"></div><div id="bgShade"></div>
@@ -275,7 +275,13 @@
     <div class="muted small" id="pushStatus"></div>
     <button class="btn" id="pushBtn">🔔 Ativar avisos de mensagem</button>
   </div>
+  <div class="glass email-box" id="streakBox">
+    <b>🔥 Dias seguidos: <span id="streakNum">0</span></b>
+    <div class="week" id="streakWeek"></div>
+    <div class="muted small" id="streakTotal"></div>
+  </div>
   <button class="btn danger" id="btnReset">Apagar tudo</button>
+  <p class="muted small center" id="appVersion" style="margin-top:14px"></p>
   <p class="muted small" style="line-height:1.5;margin-top:18px">Seus dados ficam salvos só neste celular. Letras: lrclib.net · Capas: iTunes · Tradução automática: Google Tradutor (corrija tocando em ✎ no cartão).</p>
 </section>
 
@@ -519,7 +525,7 @@
 <script src="vendor/supabase.js?v=18"></script>
 <script src="config.js?v=18"></script>
 <script src="moderacao.js?v=18"></script>
-<script src="app.js?v=25"></script>
+<script src="app.js?v=26"></script>
 <script src="share.js?v=25"></script>
 <script src="karaoke.js?v=23"></script>
 <script src="social.js?v=22"></script>
