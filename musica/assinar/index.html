@@ -1,0 +1,374 @@
+<!doctype html>
+<html lang="pt-br">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#0f0c1a">
+<title>Refrão · Inglês com música</title>
+<meta name="description" content="Aprenda inglês cantando as músicas que você ama. Frase por frase, com karaokê, nota de pronúncia e amigos. Planos a partir de R$ 6,66 por mês.">
+<meta property="og:title" content="Refrão · Aprenda inglês cantando as músicas que você ama">
+<meta property="og:description" content="Frase por frase, com karaokê, nota de pronúncia e amigos. Mensal R$ 9,99 · Anual R$ 79,90.">
+<meta property="og:image" content="../icon-512.png">
+<link rel="icon" href="../icon.svg" type="image/svg+xml">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,600;9..144,700;9..144,800&family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<style>
+  :root{--bg:#0f0c1a;--bg2:#171229;--text:#f7f4ff;--muted:#b9b2d3;--line:rgba(255,255,255,.12);--glass:rgba(255,255,255,.06);
+    --a:#8b5cf6;--b:#ec4899;--yes:#34d399;--gold:#fbbf24;--serif:"Fraunces",Georgia,serif;--sans:"Inter",system-ui,-apple-system,"Segoe UI",Roboto,sans-serif}
+  *{box-sizing:border-box}
+  html{scroll-behavior:smooth}
+  body{margin:0;background:var(--bg);color:var(--text);font-family:var(--sans);line-height:1.55;overflow-x:clip}
+  a{color:inherit}
+  .wrap{max-width:1040px;margin:0 auto;padding:0 20px}
+  .glow{position:absolute;inset:0;overflow:hidden;pointer-events:none;z-index:0}
+  .glow::before,.glow::after{content:"";position:absolute;width:620px;height:620px;border-radius:50%;filter:blur(90px);opacity:.45}
+  .glow::before{background:var(--a);top:-260px;left:-200px}
+  .glow::after{background:var(--b);top:-120px;right:-260px;opacity:.35}
+  section{position:relative;padding:64px 0}
+  h1,h2,h3{font-family:var(--serif);letter-spacing:-.02em;line-height:1.1;margin:0}
+  h1{font-size:clamp(2.3rem,7.5vw,4rem)}
+  h2{font-size:clamp(1.8rem,5vw,2.6rem);text-align:center}
+  .lead{color:var(--muted);font-size:clamp(1.05rem,2.6vw,1.25rem);max-width:620px}
+  .center{text-align:center}.center .lead{margin-left:auto;margin-right:auto}
+  .tag{display:inline-flex;align-items:center;gap:8px;padding:7px 14px;border-radius:999px;background:var(--glass);border:1px solid var(--line);font-weight:600;font-size:.9rem}
+  .grad{background:linear-gradient(135deg,#c4b5fd,var(--b));-webkit-background-clip:text;background-clip:text;color:transparent}
+  .btn{display:inline-flex;align-items:center;justify-content:center;gap:8px;border:0;border-radius:18px;padding:16px 26px;font:700 1.08rem var(--sans);cursor:pointer;text-decoration:none;color:#fff;background:linear-gradient(135deg,var(--a),var(--b));box-shadow:0 14px 40px -12px var(--b);transition:transform .15s}
+  .btn:active{transform:scale(.97)}
+  .btn.ghost{background:var(--glass);border:1px solid var(--line);box-shadow:none}
+  /* topo */
+  header.top{position:sticky;top:0;z-index:20;backdrop-filter:blur(14px);-webkit-backdrop-filter:blur(14px);background:rgba(15,12,26,.7);border-bottom:1px solid var(--line)}
+  header.top .wrap{display:flex;align-items:center;justify-content:space-between;height:62px}
+  .logo{display:flex;align-items:center;gap:10px;font-family:var(--serif);font-weight:700;font-size:1.35rem;text-decoration:none}
+  .logo i{width:32px;height:32px;border-radius:10px;display:grid;place-items:center;font-style:normal;background:linear-gradient(135deg,var(--a),var(--b))}
+  header.top .btn{padding:10px 18px;font-size:.95rem;border-radius:14px}
+  /* hero */
+  .hero{padding-top:56px}
+  .hero .wrap{display:grid;grid-template-columns:1.1fr .9fr;gap:40px;align-items:center;position:relative;z-index:1}
+  .hero h1{margin:18px 0 16px}
+  .hero .cta{display:flex;flex-wrap:wrap;gap:12px;margin:26px 0 14px}
+  .hero small{color:var(--muted)}
+  /* celular de demonstração */
+  .phone{width:min(100%,320px);margin:0 auto;aspect-ratio:9/18.5;border-radius:42px;padding:12px;background:#05040a;box-shadow:0 40px 90px -30px #000,0 0 0 1px #ffffff22 inset;position:relative}
+  .screen{width:100%;height:100%;border-radius:32px;overflow:hidden;position:relative;background:radial-gradient(circle at 30% 0%,#4b2a7a,#120d20 65%);display:flex;flex-direction:column;padding:18px 16px}
+  .s-top{display:flex;align-items:center;gap:10px;font-size:.78rem}
+  .s-top b{display:block;font-size:.85rem}
+  .cover{width:38px;height:38px;border-radius:10px;background:linear-gradient(135deg,#f59e0b,#ef4444)}
+  .notes{color:var(--yes);letter-spacing:2px;font-size:.75rem}
+  .s-mid{flex:1;display:flex;flex-direction:column;justify-content:center;text-align:center;gap:14px}
+  .chip{align-self:center;font-size:.72rem;padding:5px 10px;border-radius:999px;background:#ffffff14;border:1px solid #ffffff22}
+  .en{font-family:var(--serif);font-size:1.6rem;font-weight:700;line-height:1.2}
+  .pt{color:#e5dcff;font-size:.98rem}
+  .blank{display:inline-block;min-width:3.2em;border-radius:7px;background:#ffffff1f;border:1px dashed #ffffff55;letter-spacing:2px;color:var(--muted)}
+  .s-btns{display:grid;grid-template-columns:1fr .8fr 1fr;gap:8px}
+  .s-btns span{border-radius:16px;padding:12px 4px;font-size:.72rem;font-weight:700;text-align:center}
+  .s-no{background:#fb718530;color:#ffe4e6}.s-dq{background:#fbbf2426;color:#fef3c7}.s-ok{background:#34d39930;color:#d1fae5}
+  .floaty{position:absolute;border-radius:16px;padding:10px 14px;font-weight:700;font-size:.85rem;background:rgba(30,24,48,.92);border:1px solid var(--line);box-shadow:0 16px 40px -14px #000;animation:float 5s ease-in-out infinite}
+  .f1{left:-14%;top:16%}.f2{right:-14%;top:66%;animation-delay:-2s}.f3{left:-20%;bottom:26%;animation-delay:-3.5s}
+  @keyframes float{50%{transform:translateY(-10px)}}
+  /* faixas */
+  .strip{display:flex;flex-wrap:wrap;justify-content:center;gap:10px 26px;color:var(--muted);font-weight:600;padding:22px 0;border-top:1px solid var(--line);border-bottom:1px solid var(--line)}
+  /* passos */
+  .steps{display:grid;grid-template-columns:repeat(3,1fr);gap:18px;margin-top:36px}
+  .card{background:var(--glass);border:1px solid var(--line);border-radius:24px;padding:24px}
+  .card .n{width:40px;height:40px;border-radius:12px;display:grid;place-items:center;font-weight:800;background:linear-gradient(135deg,var(--a),var(--b));margin-bottom:12px}
+  .card h3{font-size:1.3rem;margin-bottom:6px}
+  .card p{color:var(--muted);margin:0}
+  /* recursos */
+  .feats{display:grid;grid-template-columns:repeat(3,1fr);gap:14px;margin-top:36px}
+  .feat{background:var(--glass);border:1px solid var(--line);border-radius:22px;padding:20px}
+  .feat .ic{font-size:1.9rem}
+  .feat h3{font-family:var(--sans);font-size:1.05rem;font-weight:800;margin:8px 0 4px;letter-spacing:0}
+  .feat p{color:var(--muted);margin:0;font-size:.95rem}
+  /* por que funciona */
+  .why{display:grid;grid-template-columns:1fr 1fr;gap:28px;align-items:center}
+  .why ul{list-style:none;padding:0;margin:18px 0 0;display:flex;flex-direction:column;gap:14px}
+  .why li{display:flex;gap:12px;align-items:flex-start}
+  .why li b{display:block}
+  .why li span{color:var(--muted)}
+  .levels{display:flex;flex-direction:column;gap:10px}
+  .lvl{display:flex;align-items:center;gap:12px;background:var(--glass);border:1px solid var(--line);border-radius:16px;padding:12px 14px}
+  .lvl i{font-style:normal;width:34px;height:34px;border-radius:10px;display:grid;place-items:center;font-weight:800;flex-shrink:0}
+  /* planos */
+  .plans{display:grid;grid-template-columns:1fr 1fr;gap:20px;max-width:760px;margin:36px auto 0}
+  .plan{position:relative;background:var(--glass);border:1px solid var(--line);border-radius:28px;padding:28px;display:flex;flex-direction:column;gap:12px}
+  .plan.best{background:linear-gradient(160deg,rgba(139,92,246,.22),rgba(236,72,153,.16));border:2px solid #ec4899aa;box-shadow:0 30px 70px -30px var(--b)}
+  .ribbon{position:absolute;top:-14px;left:50%;transform:translateX(-50%);white-space:nowrap;padding:6px 14px;border-radius:999px;font-weight:800;font-size:.8rem;background:linear-gradient(135deg,var(--gold),#f97316);color:#1a1000}
+  .plan h3{font-family:var(--sans);font-size:1.1rem;font-weight:800;letter-spacing:0}
+  .price{font-family:var(--serif);font-size:3rem;font-weight:800;line-height:1}
+  .price small{font-family:var(--sans);font-size:1rem;color:var(--muted);font-weight:600}
+  .per{color:var(--yes);font-weight:700}
+  .strike{color:var(--muted);text-decoration:line-through}
+  .plan ul{list-style:none;padding:0;margin:4px 0 8px;display:flex;flex-direction:column;gap:8px;color:var(--muted)}
+  .plan li::before{content:"✓ ";color:var(--yes);font-weight:800}
+  .plan .btn{width:100%;margin-top:auto}
+  .fine{color:var(--muted);font-size:.9rem;text-align:center;margin-top:18px}
+  /* pagamento */
+  .pay{max-width:620px;margin:36px auto 0;background:var(--bg2);border:1px solid var(--line);border-radius:28px;padding:26px}
+  .switch{display:grid;grid-template-columns:1fr 1fr;gap:6px;padding:5px;border-radius:18px;background:var(--glass);border:1px solid var(--line)}
+  .switch button{border:0;border-radius:14px;padding:12px;font:700 .98rem var(--sans);color:var(--muted);background:transparent;cursor:pointer}
+  .switch button.on{color:#fff;background:linear-gradient(135deg,var(--a),var(--b))}
+  .total{display:flex;justify-content:space-between;align-items:baseline;margin:20px 2px 6px}
+  .total b{font-family:var(--serif);font-size:2rem}
+  .pix{display:grid;grid-template-columns:auto 1fr;gap:20px;align-items:center;margin-top:14px}
+  .qr{width:168px;height:168px;background:#fff;border-radius:16px;padding:10px;display:grid;place-items:center}
+  .qr canvas,.qr img{width:100%;height:100%;image-rendering:pixelated}
+  .code{font-family:ui-monospace,Menlo,monospace;font-size:.72rem;word-break:break-all;background:#00000055;border:1px solid var(--line);border-radius:12px;padding:10px;color:#ddd6fe;max-height:84px;overflow:auto}
+  .pix .btn{width:100%;margin-top:10px}
+  .howpay{color:var(--muted);margin:18px 0 0;padding-left:20px}
+  .howpay li{margin-bottom:6px}
+  .ok{color:var(--yes);font-weight:700;min-height:1.4em;text-align:center;margin-top:8px}
+  .after{margin-top:18px;padding:16px;border-radius:18px;background:var(--glass);border:1px solid var(--line)}
+  .after b{display:block;margin-bottom:4px}
+  .after p{margin:0;color:var(--muted)}
+  /* faq */
+  .faq{max-width:760px;margin:30px auto 0;display:flex;flex-direction:column;gap:10px}
+  details{background:var(--glass);border:1px solid var(--line);border-radius:18px;padding:16px 18px}
+  summary{cursor:pointer;font-weight:700;list-style:none;display:flex;justify-content:space-between;gap:12px}
+  summary::after{content:"+";font-size:1.3rem;line-height:1;color:var(--muted)}
+  details[open] summary::after{content:"–"}
+  details p{color:var(--muted);margin:10px 0 0}
+  .final{text-align:center}
+  .final .btn{margin-top:24px}
+  footer{border-top:1px solid var(--line);padding:28px 0 calc(28px + env(safe-area-inset-bottom));color:var(--muted);font-size:.85rem;text-align:center}
+  @media (max-width:820px){
+    .hero .wrap{grid-template-columns:1fr;text-align:center}
+    .hero .lead{margin:0 auto}.hero .cta{justify-content:center}
+    .steps,.feats{grid-template-columns:1fr}
+    .feats{grid-template-columns:1fr 1fr}
+    .why{grid-template-columns:1fr}
+    .plans{grid-template-columns:1fr}
+    .plan.best{order:-1}
+    .floaty{display:none}
+  }
+  @media (max-width:520px){
+    section{padding:48px 0}
+    .feats{grid-template-columns:1fr}
+    .pix{grid-template-columns:1fr;justify-items:center}
+    header.top .btn{padding:9px 14px}
+  }
+</style>
+</head>
+<body>
+
+<header class="top"><div class="wrap">
+  <a class="logo" href="#"><i>♪</i>Refrão</a>
+  <a class="btn" href="#planos">Assinar</a>
+</div></header>
+
+<!-- HERO -->
+<section class="hero">
+  <div class="glow"></div>
+  <div class="wrap">
+    <div>
+      <span class="tag">🎧 Inglês com as músicas que você ama</span>
+      <h1>Pare de decorar.<br><span class="grad">Comece a cantar.</span></h1>
+      <p class="lead">Você escolhe a música. O Refrão transforma a letra em frases curtas, com tradução, e te ajuda a entender cada verso — até cantar inteira, de cabeça, entendendo tudo.</p>
+      <div class="cta">
+        <a class="btn" href="#planos">Quero aprender cantando →</a>
+        <a class="btn ghost" href="#como">Como funciona</a>
+      </div>
+      <small>📱 Funciona no iPhone, no Android e no computador · Sem instalar nada da loja</small>
+    </div>
+    <div style="position:relative">
+      <div class="phone"><div class="screen">
+        <div class="s-top"><span class="cover"></span><div><b>Sua música favorita</b><span class="notes">♪♪♪</span></div></div>
+        <div class="s-mid">
+          <span class="chip">Nível 2 · complete as palavras</span>
+          <div class="en">Every word you sing, I finally understand</div>
+          <div class="pt">Cada <span class="blank">·······</span> que você canta, eu finalmente <span class="blank">·······</span></div>
+        </div>
+        <div class="s-btns"><span class="s-no">✗<br>Ainda não</span><span class="s-dq">?<br>Dúvida</span><span class="s-ok">✓<br>Entendi</span></div>
+      </div></div>
+      <div class="floaty f1">🔥 Dias seguidos</div>
+      <div class="floaty f2">🎤 Nota de pronúncia: 92</div>
+      <div class="floaty f3">🏆 Frase dominada!</div>
+    </div>
+  </div>
+</section>
+
+<div class="wrap"><div class="strip">
+  <span>🎵 A música que você escolher</span><span>🧠 Repetição inteligente</span><span>🎤 Karaokê com nota</span><span>💬 Amigos e chat seguro</span>
+</div></div>
+
+<!-- COMO FUNCIONA -->
+<section id="como">
+  <div class="wrap center">
+    <h2>Simples assim</h2>
+    <p class="lead">Em poucos minutos por dia — inclusive naqueles intervalos em que você ia só olhar o celular.</p>
+    <div class="steps" style="text-align:left">
+      <div class="card"><div class="n">1</div><h3>Escolha a música</h3><p>Digite o nome. O Refrão encontra a letra, traduz e separa em frases — você só confirma.</p></div>
+      <div class="card"><div class="n">2</div><h3>Treine frase por frase</h3><p>Primeiro com a tradução completa. Conforme você acerta, palavras somem — até você entender sozinho.</p></div>
+      <div class="card"><div class="n">3</div><h3>Cante e prove que aprendeu</h3><p>No karaokê, a letra rola no ritmo da música e você recebe uma nota de pronúncia no final.</p></div>
+    </div>
+  </div>
+</section>
+
+<!-- RECURSOS -->
+<section>
+  <div class="wrap center">
+    <h2>Tudo o que você precisa para <span class="grad">finalmente entender</span> as letras</h2>
+    <div class="feats" style="text-align:left">
+      <div class="feat"><div class="ic">🧠</div><h3>Cartões que se adaptam a você</h3><p>Frases que você já sabe aparecem menos; as difíceis voltam na hora certa para fixar.</p></div>
+      <div class="feat"><div class="ic">🎵</div><h3>Ouça o trecho real</h3><p>Toque no 🎤 e ouça exatamente aquele verso, na voz do artista.</p></div>
+      <div class="feat"><div class="ic">📖</div><h3>3 jeitos de estudar</h3><p>Na ordem da música, decorando a letra inteira ou em ordem aleatória.</p></div>
+      <div class="feat"><div class="ic">🎤</div><h3>Karaokê com nota de pronúncia</h3><p>Cante junto e veja, verso por verso, quais palavras saíram certas.</p></div>
+      <div class="feat"><div class="ic">👯</div><h3>Dueto com amigos</h3><p>Chame um amigo, cantem a mesma música juntos e vejam quem pronuncia melhor.</p></div>
+      <div class="feat"><div class="ic">🔥</div><h3>Ofensiva e metas</h3><p>Dias seguidos, meta diária e conquistas para manter o ritmo sem perceber.</p></div>
+      <div class="feat"><div class="ic">💬</div><h3>Chat seguro</h3><p>Converse só com amigos. Links e palavrões são bloqueados automaticamente.</p></div>
+      <div class="feat"><div class="ic">🦊</div><h3>Seu perfil, seu estilo</h3><p>Avatar animado, papel de parede, fontes e cores do jeito que você gosta.</p></div>
+      <div class="feat"><div class="ic">☁️</div><h3>Seu progresso em todo lugar</h3><p>Comece no celular, continue no tablet: tudo fica salvo na sua conta.</p></div>
+    </div>
+  </div>
+</section>
+
+<!-- POR QUE FUNCIONA -->
+<section>
+  <div class="wrap why">
+    <div>
+      <h2 style="text-align:left">Por que funciona tão bem</h2>
+      <ul>
+        <li>🎶<div><b>Música gruda na memória</b><span>Você já sabe cantar dezenas de refrões sem esforço. O Refrão usa isso a seu favor — agora entendendo o que canta.</span></div></li>
+        <li>⏳<div><b>Repetição espaçada</b><span>Cada frase volta no momento certo, antes de você esquecer. É a técnica dos melhores métodos de memorização.</span></div></li>
+        <li>🪜<div><b>Dificuldade que cresce com você</b><span>A tradução vai sumindo aos poucos. Você sente o progresso a cada frase.</span></div></li>
+        <li>🗣️<div><b>Ouvir, ler e falar juntos</b><span>Você vê a frase, ouve o trecho real e canta — e o app te diz como foi.</span></div></li>
+      </ul>
+    </div>
+    <div class="levels">
+      <div class="lvl"><i style="background:#64748b">0</i><div>Frase nova, com tradução completa</div></div>
+      <div class="lvl"><i style="background:#fb7185">1</i><div>Algumas palavras somem (com a 1ª letra de dica)</div></div>
+      <div class="lvl"><i style="background:#fb923c">2</i><div>Mais da metade da tradução escondida</div></div>
+      <div class="lvl"><i style="background:#facc15;color:#111">3</i><div>Quase tudo escondido</div></div>
+      <div class="lvl"><i style="background:#a3e635;color:#111">4</i><div>Só o inglês — você já entende</div></div>
+      <div class="lvl"><i style="background:#34d399;color:#111">🏆</i><div>Frase dominada para sempre</div></div>
+    </div>
+  </div>
+</section>
+
+<!-- PLANOS -->
+<section id="planos">
+  <div class="glow" style="opacity:.6"></div>
+  <div class="wrap center" style="position:relative;z-index:1">
+    <span class="tag">💜 Menos que um lanche por mês</span>
+    <h2 style="margin-top:14px">Escolha seu plano</h2>
+    <p class="lead">Acesso completo: estudo de músicas ilimitado, karaokê, dueto, amigos e chat.</p>
+    <div class="plans" style="text-align:left">
+      <div class="plan">
+        <h3>Mensal</h3>
+        <div class="price">R$ 9,99<small> /mês</small></div>
+        <ul><li>Tudo liberado</li><li>Sem fidelidade: renova só se quiser</li><li>Pagamento rápido por Pix</li></ul>
+        <button class="btn ghost" data-plan="mensal">Assinar o mensal</button>
+      </div>
+      <div class="plan best">
+        <span class="ribbon">⭐ Promoção especial · 33% OFF</span>
+        <h3>Anual</h3>
+        <div><span class="strike">R$ 119,88</span></div>
+        <div class="price">R$ 79,90<small> /ano</small></div>
+        <div class="per">Sai por R$ 6,66 por mês · economize R$ 39,98</div>
+        <ul><li>Tudo liberado o ano inteiro</li><li>Um único Pix, sem preocupação</li><li>O melhor custo-benefício</li></ul>
+        <button class="btn" data-plan="anual">Quero o anual com desconto →</button>
+      </div>
+    </div>
+
+    <!-- PAGAMENTO -->
+    <div class="pay" id="pagar" style="text-align:left">
+      <div class="switch"><button data-plan="mensal">Mensal · R$ 9,99</button><button data-plan="anual" class="on">Anual · R$ 79,90</button></div>
+      <div class="total"><span>Total a pagar</span><b id="payTotal">R$ 79,90</b></div>
+      <div class="pix">
+        <div class="qr" id="payQr" aria-label="QR code do Pix"></div>
+        <div>
+          <div class="muted" style="font-size:.9rem;margin-bottom:6px;color:var(--muted)">Pix Copia e Cola</div>
+          <div class="code" id="payCode"></div>
+          <button class="btn" id="payCopy">📋 Copiar código Pix</button>
+        </div>
+      </div>
+      <div class="ok" id="payOk"></div>
+      <ol class="howpay">
+        <li>Toque em <b>Copiar código Pix</b>.</li>
+        <li>Abra o app do seu banco → <b>Pix</b> → <b>Pix Copia e Cola</b> e cole.</li>
+        <li>Confira o valor e confirme. Pelo computador? Aponte a câmera do celular para o QR code.</li>
+      </ol>
+      <div class="after">
+        <b>✅ Pagou? Falta só um passo</b>
+        <p id="afterText">Guarde o comprovante e envie junto com o seu <b>@usuário do Refrão</b> para liberarmos o seu plano.</p>
+        <a class="btn ghost hidden" id="afterBtn" target="_blank" rel="noopener" style="margin-top:12px;width:100%">💬 Enviar comprovante</a>
+      </div>
+      <p class="fine" style="margin-bottom:0">Ainda não tem conta? <a href="../" style="font-weight:700">Crie a sua grátis no app</a> e escolha seu @usuário.</p>
+    </div>
+  </div>
+</section>
+
+<!-- FAQ -->
+<section>
+  <div class="wrap">
+    <h2>Perguntas frequentes</h2>
+    <div class="faq">
+      <details><summary>Preciso instalar alguma coisa?</summary><p>Não precisa de loja de aplicativos. Abra o Refrão pelo navegador e, se quiser, adicione à tela inicial: ele vira um app de verdade, com ícone e avisos.</p></details>
+      <details><summary>Funciona no iPhone e no Android?</summary><p>Sim. Funciona no iPhone, iPad, celulares Android e também no computador.</p></details>
+      <details><summary>Posso escolher qualquer música?</summary><p>Você digita o nome e o Refrão busca a letra. A grande maioria das músicas em inglês tem letra disponível; se faltar, dá para colar a letra manualmente.</p></details>
+      <details><summary>Preciso saber inglês?</summary><p>Não. Você começa com a tradução completa e vai ganhando autonomia frase por frase. Se já sabe um pouco, avança mais rápido.</p></details>
+      <details><summary>O chat é seguro para adolescentes?</summary><p>O chat é só com amigos aceitos, links e palavrões são bloqueados automaticamente e a foto de perfil aparece apenas para amigos — os demais veem um avatar.</p></details>
+      <details><summary>Como funciona o pagamento?</summary><p>Por Pix, com o valor já preenchido. O plano mensal não tem fidelidade: você renova só se quiser. O anual é pago uma vez e vale por 12 meses.</p></details>
+      <details><summary>Meu progresso fica salvo?</summary><p>Fica, na sua conta. Você pode estudar no celular e continuar no tablet ou no computador.</p></details>
+    </div>
+  </div>
+</section>
+
+<!-- FINAL -->
+<section class="final">
+  <div class="wrap">
+    <h2>A próxima música que você ouvir<br><span class="grad">pode ser a primeira que você entende inteira.</span></h2>
+    <a class="btn" href="#planos">Começar agora →</a>
+  </div>
+</section>
+
+<footer>
+  <div class="wrap">♪ Refrão · Inglês com música · Pagamento via Pix (CNPJ 41.417.969/0001-40)</div>
+</footer>
+
+<script src="https://cdn.jsdelivr.net/npm/qrcode-generator@1.4.4/qrcode.js"></script>
+<script src="pix.js"></script>
+<script>
+  // contato para envio do comprovante (WhatsApp, só números com DDI: ex. 5511999999999). Vazio = só a instrução.
+  const CONTATO_WHATSAPP = '';
+  const PLANS = {
+    mensal: { label: 'Mensal', amount: 9.99, txid: 'REFRAOMENSAL' },
+    anual: { label: 'Anual', amount: 79.90, txid: 'REFRAOANUAL' }
+  };
+  const KEY = '41417969000140';
+  let plan = 'anual';
+  const $ = id => document.getElementById(id);
+  const brl = v => 'R$ ' + v.toFixed(2).replace('.', ',');
+  function render() {
+    const p = PLANS[plan];
+    const code = pixPayload({ key: KEY, amount: p.amount, name: 'Refrao', city: 'Brasil', txid: p.txid });
+    document.querySelectorAll('.switch button').forEach(b => b.classList.toggle('on', b.dataset.plan === plan));
+    $('payTotal').textContent = brl(p.amount);
+    $('payCode').textContent = code;
+    $('payOk').textContent = '';
+    try {
+      const qr = qrcode(0, 'M'); qr.addData(code); qr.make();
+      $('payQr').innerHTML = qr.createImgTag(6, 0);
+    } catch (e) { $('payQr').innerHTML = '<small style="color:#333;text-align:center">Use o código<br>copia e cola</small>'; }
+    if (CONTATO_WHATSAPP) {
+      const msg = `Olá! Paguei o plano ${p.label} do Refrão (${brl(p.amount)}). Meu @usuário é: `;
+      $('afterBtn').href = `https://wa.me/${CONTATO_WHATSAPP}?text=${encodeURIComponent(msg)}`;
+      $('afterBtn').classList.remove('hidden');
+    }
+  }
+  document.addEventListener('click', e => {
+    const b = e.target.closest('[data-plan]'); if (!b) return;
+    plan = b.dataset.plan; render();
+    if (!b.closest('.switch')) $('pagar').scrollIntoView({ behavior: 'smooth', block: 'start' });
+  });
+  $('payCopy').onclick = async () => {
+    const t = $('payCode').textContent;
+    try { await navigator.clipboard.writeText(t); }
+    catch (e) { const r = document.createRange(); r.selectNodeContents($('payCode')); getSelection().removeAllRanges(); getSelection().addRange(r); document.execCommand('copy'); }
+    $('payOk').textContent = '✓ Código copiado! Agora cole no app do seu banco (Pix Copia e Cola).';
+  };
+  const st = document.createElement('style'); st.textContent = '.hidden{display:none!important}'; document.head.appendChild(st);
+  render();
+</script>
+</body>
+</html>

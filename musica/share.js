@@ -5,6 +5,8 @@
 'use strict';
 
 const APP_URL = location.origin + location.pathname.replace(/index\.html$/, '');
+// quem vê o post vai para a página de venda (planos e Pix)
+const SALES_URL = APP_URL + 'assinar/';
 let shareFile = null, shareText = '';
 
 function loadImg(src, cors) {
@@ -113,24 +115,16 @@ async function buildShareImage(kind, song, extra = {}) {
     ctx.font = `500 28px ${sans}`; ctx.fillStyle = 'rgba(255,255,255,.75)'; ctx.fillText(small, x + bw / 2, by + 150);
   });
 
-  // rodapé: QR code + link
-  const fy = 1600;
-  try {
-    await loadQR();
-    const qr = qrcode(0, 'M'); qr.addData(APP_URL); qr.make();
-    const n = qr.getModuleCount(), size = 220, cell = size / n, qx = 110, qy = fy;
-    roundRect(ctx, qx - 18, qy - 18, size + 36, size + 36, 24); ctx.fillStyle = '#fff'; ctx.fill();
-    ctx.fillStyle = '#111';
-    for (let r = 0; r < n; r++) for (let k = 0; k < n; k++) if (qr.isDark(r, k)) ctx.fillRect(qx + k * cell, qy + r * cell, Math.ceil(cell), Math.ceil(cell));
-    ctx.textAlign = 'left'; ctx.fillStyle = '#fff'; ctx.font = `700 44px ${sans}`;
-    ctx.fillText('Aprenda inglês com', 400, fy + 70); ctx.fillText('as músicas que ama', 400, fy + 125);
-    ctx.font = `500 30px ${sans}`; ctx.fillStyle = 'rgba(255,255,255,.75)'; ctx.fillText('Aponte a câmera e baixe o Refrão', 400, fy + 185);
-  } catch (e) {
-    ctx.textAlign = 'center'; ctx.fillStyle = '#fff'; ctx.font = `700 46px ${sans}`;
-    ctx.fillText('Aprenda inglês com as músicas que ama', W / 2, fy + 80);
-  }
-  ctx.textAlign = 'center'; ctx.font = `600 30px ${sans}`; ctx.fillStyle = 'rgba(255,255,255,.85)';
-  ctx.fillText(APP_URL.replace(/^https?:\/\//, ''), W / 2, H - 50);
+  // rodapé: chamada para o link (no Stories, a pessoa toca na figurinha de link)
+  const fy = 1585;
+  ctx.textAlign = 'center'; ctx.fillStyle = '#fff'; ctx.font = `800 46px ${sans}`;
+  ctx.fillText('Aprenda inglês com as', W / 2, fy); ctx.fillText('músicas que você ama', W / 2, fy + 58);
+  const pw = 640, ph = 104, px = (W - pw) / 2, py = fy + 100;
+  const pg = ctx.createLinearGradient(px, 0, px + pw, 0); pg.addColorStop(0, '#8b5cf6'); pg.addColorStop(1, '#ec4899');
+  ctx.save(); ctx.shadowColor = 'rgba(236,72,153,.6)'; ctx.shadowBlur = 40; roundRect(ctx, px, py, pw, ph, 52); ctx.fillStyle = pg; ctx.fill(); ctx.restore();
+  ctx.fillStyle = '#fff'; ctx.font = `800 42px ${sans}`; ctx.fillText('👆 Toque no link e comece', W / 2, py + 66);
+  ctx.font = `600 28px ${sans}`; ctx.fillStyle = 'rgba(255,255,255,.8)';
+  ctx.fillText(SALES_URL.replace(/^https?:\/\//, '').replace(/\/$/, ''), W / 2, H - 44);
 
   return new Promise(res => c.toBlob(res, 'image/png'));
 }
@@ -143,8 +137,8 @@ async function openShare(kind, song, extra) {
     const blob = await buildShareImage(kind, song, extra);
     shareFile = new File([blob], `refrao-${(song?.title || 'resultado').toLowerCase().replace(/[^a-z0-9]+/g, '-')}.png`, { type: 'image/png' });
     shareText = song
-      ? `${kind === 'mastered' ? 'Dominei' : kind === 'karaoke' ? `Tirei ${extra.score} de pronúncia cantando` : 'Estou aprendendo inglês com'} "${song.title}" (${song.artist}) no Refrão 🎧 Baixe também: ${APP_URL}`
-      : `Estou aprendendo inglês com música no Refrão 🎧 Baixe também: ${APP_URL}`;
+      ? `${kind === 'mastered' ? 'Dominei' : kind === 'karaoke' ? `Tirei ${extra.score} de pronúncia cantando` : 'Estou aprendendo inglês com'} "${song.title}" (${song.artist}) no Refrão 🎧 Aprenda também: ${SALES_URL}`
+      : `Estou aprendendo inglês com música no Refrão 🎧 Aprenda também: ${SALES_URL}`;
     $('shareImg').src = URL.createObjectURL(blob);
     $('shareGo').disabled = false; $('shareGo').textContent = '📤 Compartilhar';
   } catch (e) {
@@ -154,10 +148,12 @@ async function openShare(kind, song, extra) {
 // o compartilhar precisa acontecer direto no toque (exigência do iPhone), por isso a imagem é gerada antes
 $('shareGo').onclick = async () => {
   if (!shareFile) return;
+  // o Instagram não leva o texto junto: o link vai copiado para colar na figurinha 🔗 Link do Stories
+  navigator.clipboard?.writeText(SALES_URL).catch(() => {});
   const data = { files: [shareFile], text: shareText, title: 'Refrão' };
   try {
-    if (navigator.canShare && navigator.canShare(data)) { await navigator.share(data); return; }
-    if (navigator.share) { await navigator.share({ text: shareText, url: APP_URL, title: 'Refrão' }); return; }
+    if (navigator.canShare && navigator.canShare(data)) { await navigator.share(data); toast('🔗 Link copiado! No Instagram, adicione a figurinha “Link” e cole.', 6000); return; }
+    if (navigator.share) { await navigator.share({ text: shareText, url: SALES_URL, title: 'Refrão' }); return; }
   } catch (e) { if (e.name === 'AbortError') return; }
   // sem menu de compartilhar (ex.: computador): baixa a imagem e copia o texto com o link
   const a = document.createElement('a'); a.href = $('shareImg').src; a.download = shareFile.name; a.click();
