@@ -341,7 +341,7 @@
   const brl = v => 'R$ ' + v.toFixed(2).replace('.', ',');
   function render() {
     const p = PLANS[plan];
-    const code = pixPayload({ key: KEY, amount: p.amount, name: 'Refrao', city: 'Brasil', txid: p.txid });
+    const code = pixPayload({ key: KEY, amount: p.amount, name: 'Refrao', city: 'Joinville', txid: p.txid });
     document.querySelectorAll('.switch button').forEach(b => b.classList.toggle('on', b.dataset.plan === plan));
     $('payTotal').textContent = brl(p.amount);
     $('payCode').textContent = code;
