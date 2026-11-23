@@ -1,0 +1,187 @@
+<!doctype html>
+<html lang="pt-br">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Refrão · Assinaturas</title>
+<style>
+  :root{--bg:#0f0c1a;--text:#f7f4ff;--muted:#b4aecb;--line:rgba(255,255,255,.14);--a:#8b5cf6;--b:#ec4899}
+  body{margin:0;background:var(--bg);color:var(--text);font-family:system-ui,-apple-system,"Segoe UI",Roboto,sans-serif}
+  main{max-width:720px;margin:0 auto;padding:20px 16px}
+  h1{font-size:1.3rem;margin:0 0 8px}
+  ol{color:var(--muted);line-height:1.6;padding-left:20px;margin:0 0 16px}
+  ol b{color:var(--text)}
+  a{color:#f9a8d4}
+  button{width:100%;border:0;border-radius:14px;padding:16px;font-size:1.1rem;font-weight:700;color:#fff;background:linear-gradient(135deg,var(--a),var(--b))}
+  #ok{display:block;text-align:center;margin-top:10px;color:#34d399;font-weight:700;min-height:1.3em}
+  pre{background:rgba(255,255,255,.06);border:1px solid var(--line);border-radius:14px;padding:14px;font-size:.78rem;white-space:pre-wrap;word-break:break-word}
+</style>
+</head>
+<body>
+<main>
+  <h1>Refrão · ativar teste grátis, assinaturas e painel</h1>
+  <ol>
+    <li>Toque em <b>Copiar</b> aqui embaixo.</li>
+    <li>Abra o <a href="https://supabase.com/dashboard/project/khpterapkxaispzorsav/sql/new" target="_blank" rel="noopener">SQL Editor do Supabase</a>.</li>
+    <li>Toque no editor, cole e toque em <b>Run</b>.</li>
+    <li>Em <b>Results</b> deve aparecer <b>@mauricio liberado (cortesia)</b>. Se aparecer erro em vermelho, tire um print.</li>
+  </ol>
+  <button id="copy">📋 Copiar</button><span id="ok"></span>
+  <pre id="sql">-- ---------- Assinaturas: teste grátis de 15 minutos + liberação manual ----------
+create table if not exists public.subscriptions (
+  user_id uuid primary key references public.profiles (id) on delete cascade,
+  plan text not null check (plan in (&#x27;mensal&#x27;, &#x27;anual&#x27;, &#x27;cortesia&#x27;)),
+  paid_until timestamptz not null,
+  updated_at timestamptz not null default now()
+);
+alter table public.subscriptions enable row level security;
+revoke all on public.subscriptions from anon, authenticated;
+grant select on public.subscriptions to authenticated;
+grant select, insert, update, delete on public.subscriptions to service_role;
+drop policy if exists &quot;ver minha assinatura&quot; on public.subscriptions;
+create policy &quot;ver minha assinatura&quot; on public.subscriptions for select to authenticated using (user_id = auth.uid());
+
+-- situação de acesso de quem está logado (o servidor decide; o relógio do celular não conta)
+create or replace function public.my_access() returns jsonb
+language sql stable security definer set search_path = public as $$
+  select jsonb_build_object(
+    &#x27;now&#x27;, now(),
+    &#x27;trial_ends&#x27;, p.created_at + interval &#x27;15 minutes&#x27;,
+    &#x27;paid_until&#x27;, s.paid_until,
+    &#x27;plan&#x27;, s.plan,
+    &#x27;status&#x27;, case when s.paid_until &gt; now() then &#x27;active&#x27;
+                   when p.created_at + interval &#x27;15 minutes&#x27; &gt; now() then &#x27;trial&#x27;
+                   else &#x27;expired&#x27; end)
+  from public.profiles p left join public.subscriptions s on s.user_id = p.id
+  where p.id = auth.uid()
+$$;
+revoke all on function public.my_access() from public, anon;
+grant execute on function public.my_access() to authenticated;
+
+-- para você liberar quem pagou (só funciona no SQL Editor do Supabase):
+--   select liberar_assinatura(&#x27;usuario&#x27;, &#x27;mensal&#x27;);   -- +1 mês
+--   select liberar_assinatura(&#x27;usuario&#x27;, &#x27;anual&#x27;);    -- +1 ano
+--   select liberar_assinatura(&#x27;usuario&#x27;, &#x27;cortesia&#x27;); -- sem prazo
+-- Se a pessoa ainda tiver dias pagos, o tempo novo é somado.
+create or replace function public.liberar_assinatura(p_handle text, p_plano text) returns text
+language plpgsql security definer set search_path = public as $$
+declare uid uuid; ate timestamptz; h text := lower(replace(trim(p_handle), &#x27;@&#x27;, &#x27;&#x27;));
+begin
+  if p_plano not in (&#x27;mensal&#x27;, &#x27;anual&#x27;, &#x27;cortesia&#x27;) then return &#x27;Plano inválido: use mensal, anual ou cortesia&#x27;; end if;
+  select id into uid from public.profiles where handle = h;
+  if uid is null then return &#x27;Usuário @&#x27; || h || &#x27; não encontrado&#x27;; end if;
+  insert into public.subscriptions (user_id, plan, paid_until) values (uid, p_plano, now()) on conflict (user_id) do nothing;
+  update public.subscriptions set plan = p_plano, updated_at = now(),
+    paid_until = greatest(paid_until, now()) + case p_plano when &#x27;mensal&#x27; then interval &#x27;1 month&#x27; when &#x27;anual&#x27; then interval &#x27;1 year&#x27; else interval &#x27;100 years&#x27; end
+  where user_id = uid returning paid_until into ate;
+  return &#x27;@&#x27; || h || &#x27; liberado (&#x27; || p_plano || &#x27;) até &#x27; || to_char(ate at time zone &#x27;America/Sao_Paulo&#x27;, &#x27;DD/MM/YYYY&#x27;);
+end;
+$$;
+revoke all on function public.liberar_assinatura(text, text) from public, anon, authenticated;
+
+-- ---------- Painel do administrador: pedidos de pagamento e liberação ----------
+-- quem pode usar o painel (só a conta @mauricio)
+create table if not exists public.app_admins (user_id uuid primary key references public.profiles (id) on delete cascade);
+alter table public.app_admins enable row level security;
+revoke all on public.app_admins from anon, authenticated;
+insert into public.app_admins (user_id) select id from public.profiles where handle = &#x27;mauricio&#x27; on conflict do nothing;
+create or replace function public.is_admin() returns boolean
+language sql stable security definer set search_path = public as $$
+  select exists (select 1 from public.app_admins where user_id = auth.uid())
+$$;
+grant execute on function public.is_admin() to authenticated;
+
+-- pedidos: &quot;paguei o plano X&quot; (registrado ao tocar em Enviar comprovante)
+create table if not exists public.payment_claims (
+  id bigint generated always as identity primary key,
+  user_id uuid not null references public.profiles (id) on delete cascade,
+  plan text not null check (plan in (&#x27;mensal&#x27;, &#x27;anual&#x27;)),
+  amount numeric(8, 2) not null,
+  status text not null default &#x27;pendente&#x27; check (status in (&#x27;pendente&#x27;, &#x27;liberado&#x27;, &#x27;recusado&#x27;)),
+  created_at timestamptz not null default now(),
+  decided_at timestamptz
+);
+alter table public.payment_claims enable row level security;
+revoke all on public.payment_claims from anon, authenticated;
+grant select, insert, update, delete on public.payment_claims, public.app_admins to service_role;
+
+create or replace function public.registrar_pagamento(p_handle text, p_plano text) returns text
+language plpgsql security definer set search_path = public as $$
+declare uid uuid; h text := lower(regexp_replace(coalesce(p_handle, &#x27;&#x27;), &#x27;[^a-zA-Z0-9]&#x27;, &#x27;&#x27;, &#x27;g&#x27;)); n int;
+begin
+  if p_plano not in (&#x27;mensal&#x27;, &#x27;anual&#x27;) then return &#x27;plano inválido&#x27;; end if;
+  select id into uid from public.profiles where handle = h;
+  if uid is null then return &#x27;usuario_nao_encontrado&#x27;; end if;
+  select count(*) into n from public.payment_claims where user_id = uid and created_at &gt; now() - interval &#x27;1 day&#x27;;
+  if n &gt;= 5 then return &#x27;ok&#x27;; end if; -- evita pedidos repetidos sem fim
+  insert into public.payment_claims (user_id, plan, amount) values (uid, p_plano, case p_plano when &#x27;mensal&#x27; then 9.99 else 79.90 end);
+  return &#x27;ok&#x27;;
+end;
+$$;
+grant execute on function public.registrar_pagamento(text, text) to anon, authenticated;
+
+-- funções do painel: todas conferem se quem chama é administrador
+create or replace function public.admin_pedidos() returns table (id bigint, handle text, name text, plan text, amount numeric, status text, created_at timestamptz, decided_at timestamptz, paid_until timestamptz)
+language plpgsql stable security definer set search_path = public as $$
+begin
+  if not public.is_admin() then raise exception &#x27;Acesso restrito ao administrador.&#x27;; end if;
+  return query select c.id, p.handle, p.name, c.plan, c.amount, c.status, c.created_at, c.decided_at, s.paid_until
+    from public.payment_claims c join public.profiles p on p.id = c.user_id left join public.subscriptions s on s.user_id = c.user_id
+    order by (c.status = &#x27;pendente&#x27;) desc, c.created_at desc limit 500;
+end;
+$$;
+create or replace function public.admin_usuarios(p_busca text default &#x27;&#x27;) returns table (handle text, name text, created_at timestamptz, status text, plan text, paid_until timestamptz, pedidos_pendentes bigint)
+language plpgsql stable security definer set search_path = public as $$
+begin
+  if not public.is_admin() then raise exception &#x27;Acesso restrito ao administrador.&#x27;; end if;
+  return query select p.handle, p.name, p.created_at,
+      case when s.paid_until &gt; now() then &#x27;ativo&#x27; when p.created_at + interval &#x27;15 minutes&#x27; &gt; now() then &#x27;teste&#x27; else &#x27;expirado&#x27; end,
+      s.plan, s.paid_until,
+      (select count(*) from public.payment_claims c where c.user_id = p.id and c.status = &#x27;pendente&#x27;)
+    from public.profiles p left join public.subscriptions s on s.user_id = p.id
+    where coalesce(p_busca, &#x27;&#x27;) = &#x27;&#x27; or p.handle ilike &#x27;%&#x27; || p_busca || &#x27;%&#x27; or p.name ilike &#x27;%&#x27; || p_busca || &#x27;%&#x27;
+    order by p.created_at desc limit 500;
+end;
+$$;
+create or replace function public.admin_liberar(p_handle text, p_plano text, p_pedido bigint default null) returns text
+language plpgsql security definer set search_path = public as $$
+declare r text;
+begin
+  if not public.is_admin() then raise exception &#x27;Acesso restrito ao administrador.&#x27;; end if;
+  r := public.liberar_assinatura(p_handle, p_plano);
+  if p_pedido is not null then update public.payment_claims set status = &#x27;liberado&#x27;, decided_at = now() where id = p_pedido; end if;
+  return r;
+end;
+$$;
+create or replace function public.admin_recusar(p_pedido bigint) returns text
+language plpgsql security definer set search_path = public as $$
+begin
+  if not public.is_admin() then raise exception &#x27;Acesso restrito ao administrador.&#x27;; end if;
+  update public.payment_claims set status = &#x27;recusado&#x27;, decided_at = now() where id = p_pedido;
+  return &#x27;Pedido recusado&#x27;;
+end;
+$$;
+create or replace function public.admin_remover_acesso(p_handle text) returns text
+language plpgsql security definer set search_path = public as $$
+begin
+  if not public.is_admin() then raise exception &#x27;Acesso restrito ao administrador.&#x27;; end if;
+  delete from public.subscriptions where user_id = (select id from public.profiles where handle = lower(p_handle));
+  return &#x27;Acesso de @&#x27; || lower(p_handle) || &#x27; removido&#x27;;
+end;
+$$;
+revoke all on function public.admin_pedidos(), public.admin_usuarios(text), public.admin_liberar(text, text, bigint), public.admin_recusar(bigint), public.admin_remover_acesso(text) from public, anon;
+grant execute on function public.admin_pedidos(), public.admin_usuarios(text), public.admin_liberar(text, text, bigint), public.admin_recusar(bigint), public.admin_remover_acesso(text) to authenticated;
+
+-- sua conta liberada (cortesia)
+select liberar_assinatura(&#x27;mauricio&#x27;, &#x27;cortesia&#x27;);
+</pre>
+</main>
+<script>
+  document.getElementById('copy').onclick = async () => {
+    const t = document.getElementById('sql').textContent, ok = document.getElementById('ok');
+    try { await navigator.clipboard.writeText(t); ok.textContent = '✓ Copiado! Agora cole no SQL Editor.'; }
+    catch (e) { const r = document.createRange(); r.selectNodeContents(document.getElementById('sql')); getSelection().removeAllRanges(); getSelection().addRange(r); ok.textContent = 'Texto selecionado — toque em Copiar no menu.'; }
+  };
+</script>
+</body>
+</html>

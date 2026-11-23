@@ -121,6 +121,12 @@
   .after{margin-top:18px;padding:16px;border-radius:18px;background:var(--glass);border:1px solid var(--line)}
   .after b{display:block;margin-bottom:4px}
   .after p{margin:0;color:var(--muted)}
+  .ulabel{display:block;margin-top:14px;font-weight:700;font-size:.92rem}
+  .uwrap{display:flex;align-items:center;gap:6px;margin-top:6px;background:#00000055;border:1px solid var(--line);border-radius:14px;padding:0 12px}
+  .uwrap span{color:var(--muted);font-weight:700}
+  .uwrap input{flex:1;min-width:0;background:transparent;border:0;outline:none;color:var(--text);font:600 1rem var(--sans);padding:13px 0}
+  .uerr{color:#fda4af;font-size:.88rem;min-height:1.2em;margin-top:6px}
+  .after .uerr b{display:inline;margin:0}
   /* faq */
   .faq{max-width:760px;margin:30px auto 0;display:flex;flex-direction:column;gap:10px}
   details{background:var(--glass);border:1px solid var(--line);border-radius:18px;padding:16px 18px}
@@ -290,8 +296,12 @@
       </ol>
       <div class="after">
         <b>✅ Pagou? Falta só um passo</b>
-        <p id="afterText">Guarde o comprovante e envie junto com o seu <b>@usuário do Refrão</b> para liberarmos o seu plano.</p>
-        <a class="btn ghost hidden" id="afterBtn" target="_blank" rel="noopener" style="margin-top:12px;width:100%">💬 Enviar comprovante</a>
+        <p id="afterText">Informe seu <b>@usuário do Refrão</b> e envie o comprovante pelo WhatsApp. Assim que conferirmos, seu plano é liberado e o app destrava sozinho.</p>
+        <label class="ulabel">Seu @usuário no Refrão
+          <span class="uwrap"><span>@</span><input id="userInput" autocomplete="username" autocapitalize="none" spellcheck="false" placeholder="seuusuario" maxlength="20"></span>
+        </label>
+        <div class="uerr" id="userErr"></div>
+        <button class="btn" id="afterBtn" style="margin-top:12px;width:100%">💬 Enviar comprovante no WhatsApp</button>
       </div>
       <p class="fine" style="margin-bottom:0">Ainda não tem conta? <a href="../" style="font-weight:700">Crie a sua grátis no app</a> e escolha seu @usuário.</p>
     </div>
@@ -327,6 +337,8 @@
 </footer>
 
 <script src="https://cdn.jsdelivr.net/npm/qrcode-generator@1.4.4/qrcode.js"></script>
+<script src="../vendor/supabase.js"></script>
+<script src="../config.js"></script>
 <script src="pix.js"></script>
 <script>
   // contato para envio do comprovante (WhatsApp, só números com DDI: ex. 5511999999999). Vazio = só a instrução.
@@ -352,17 +364,30 @@
       const qr = qrcode(0, 'M'); qr.addData(code); qr.make();
       $('payQr').innerHTML = qr.createImgTag(6, 0);
     } catch (e) { $('payQr').innerHTML = '<small style="color:#333;text-align:center">Use o código<br>copia e cola</small>'; }
-    if (CONTATO_WHATSAPP) {
-      const msg = `Olá! Paguei o plano ${p.label} do Refrão (${brl(p.amount)}). Meu @usuário é: ${USER ? '@' + USER : ''}`;
-      $('afterBtn').href = `https://wa.me/${CONTATO_WHATSAPP}?text=${encodeURIComponent(msg)}`;
-      $('afterBtn').classList.remove('hidden');
-    }
+
   }
   document.addEventListener('click', e => {
     const b = e.target.closest('[data-plan]'); if (!b) return;
     plan = b.dataset.plan; render();
     if (!b.closest('.switch')) $('pagar').scrollIntoView({ behavior: 'smooth', block: 'start' });
   });
+  // registra o pedido (aparece no painel do administrador) e abre o WhatsApp com a mensagem pronta
+  const cfg = window.REFRAO_CONFIG || {};
+  const sbc = window.supabase && cfg.supabaseUrl ? window.supabase.createClient(cfg.supabaseUrl, cfg.supabaseKey, { auth: { persistSession: false } }) : null;
+  $('afterBtn').onclick = async () => {
+    const h = $('userInput').value.replace(/[^a-z0-9]/gi, '').toLowerCase(), p = PLANS[plan];
+    $('userErr').textContent = '';
+    if (h.length < 2) { $('userErr').textContent = 'Digite o seu @usuário do Refrão (aparece em Ajustes no app).'; $('userInput').focus(); return; }
+    // abre a janela já no toque (o navegador bloqueia janelas abertas depois de esperar a internet)
+    const w = window.open('', '_blank');
+    let res = 'ok';
+    if (sbc) { try { const r = await sbc.rpc('registrar_pagamento', { p_handle: h, p_plano: plan }); res = r.error ? 'ok' : r.data; } catch (e) {} }
+    if (res === 'usuario_nao_encontrado') { w && w.close(); $('userErr').innerHTML = `Não achamos <b>@${h}</b>. Confira em Ajustes no app (“Conectado como…”).`; return; }
+    const msg = `Olá! Paguei o plano ${p.label} do Refrão (${brl(p.amount)}). Meu @usuário é: @${h}. Segue o comprovante:`;
+    const url = `https://wa.me/${CONTATO_WHATSAPP}?text=${encodeURIComponent(msg)}`;
+    if (w) w.location = url; else location.href = url;
+    $('userErr').innerHTML = '<span style="color:#34d399">✓ Pedido registrado! Anexe o comprovante na conversa do WhatsApp.</span>';
+  };
   $('payCopy').onclick = async () => {
     const t = $('payCode').textContent;
     try { await navigator.clipboard.writeText(t); }
@@ -371,7 +396,7 @@
   };
   const st = document.createElement('style'); st.textContent = '.hidden{display:none!important}'; document.head.appendChild(st);
   render();
-  if (USER) { const f = document.querySelector('#pagar .fine'); if (f) f.innerHTML = `Assinando a conta <b>@${USER}</b>. Envie o comprovante pelo botão acima.`; }
+  if (USER) { $('userInput').value = USER; const f = document.querySelector('#pagar .fine'); if (f) f.innerHTML = `Assinando a conta <b>@${USER}</b>.`; }
   if (location.hash === '#pagar') setTimeout(() => $('pagar').scrollIntoView({ block: 'start' }), 300);
 </script>
 </body>

@@ -564,3 +564,96 @@ begin
 end;
 $$;
 revoke all on function public.liberar_assinatura(text, text) from public, anon, authenticated;
+
+-- ---------- Painel do administrador: pedidos de pagamento e liberação ----------
+-- quem pode usar o painel (só a conta @mauricio)
+create table if not exists public.app_admins (user_id uuid primary key references public.profiles (id) on delete cascade);
+alter table public.app_admins enable row level security;
+revoke all on public.app_admins from anon, authenticated;
+insert into public.app_admins (user_id) select id from public.profiles where handle = 'mauricio' on conflict do nothing;
+create or replace function public.is_admin() returns boolean
+language sql stable security definer set search_path = public as $$
+  select exists (select 1 from public.app_admins where user_id = auth.uid())
+$$;
+grant execute on function public.is_admin() to authenticated;
+
+-- pedidos: "paguei o plano X" (registrado ao tocar em Enviar comprovante)
+create table if not exists public.payment_claims (
+  id bigint generated always as identity primary key,
+  user_id uuid not null references public.profiles (id) on delete cascade,
+  plan text not null check (plan in ('mensal', 'anual')),
+  amount numeric(8, 2) not null,
+  status text not null default 'pendente' check (status in ('pendente', 'liberado', 'recusado')),
+  created_at timestamptz not null default now(),
+  decided_at timestamptz
+);
+alter table public.payment_claims enable row level security;
+revoke all on public.payment_claims from anon, authenticated;
+grant select, insert, update, delete on public.payment_claims, public.app_admins to service_role;
+
+create or replace function public.registrar_pagamento(p_handle text, p_plano text) returns text
+language plpgsql security definer set search_path = public as $$
+declare uid uuid; h text := lower(regexp_replace(coalesce(p_handle, ''), '[^a-zA-Z0-9]', '', 'g')); n int;
+begin
+  if p_plano not in ('mensal', 'anual') then return 'plano inválido'; end if;
+  select id into uid from public.profiles where handle = h;
+  if uid is null then return 'usuario_nao_encontrado'; end if;
+  select count(*) into n from public.payment_claims where user_id = uid and created_at > now() - interval '1 day';
+  if n >= 5 then return 'ok'; end if; -- evita pedidos repetidos sem fim
+  insert into public.payment_claims (user_id, plan, amount) values (uid, p_plano, case p_plano when 'mensal' then 9.99 else 79.90 end);
+  return 'ok';
+end;
+$$;
+grant execute on function public.registrar_pagamento(text, text) to anon, authenticated;
+
+-- funções do painel: todas conferem se quem chama é administrador
+create or replace function public.admin_pedidos() returns table (id bigint, handle text, name text, plan text, amount numeric, status text, created_at timestamptz, decided_at timestamptz, paid_until timestamptz)
+language plpgsql stable security definer set search_path = public as $$
+begin
+  if not public.is_admin() then raise exception 'Acesso restrito ao administrador.'; end if;
+  return query select c.id, p.handle, p.name, c.plan, c.amount, c.status, c.created_at, c.decided_at, s.paid_until
+    from public.payment_claims c join public.profiles p on p.id = c.user_id left join public.subscriptions s on s.user_id = c.user_id
+    order by (c.status = 'pendente') desc, c.created_at desc limit 500;
+end;
+$$;
+create or replace function public.admin_usuarios(p_busca text default '') returns table (handle text, name text, created_at timestamptz, status text, plan text, paid_until timestamptz, pedidos_pendentes bigint)
+language plpgsql stable security definer set search_path = public as $$
+begin
+  if not public.is_admin() then raise exception 'Acesso restrito ao administrador.'; end if;
+  return query select p.handle, p.name, p.created_at,
+      case when s.paid_until > now() then 'ativo' when p.created_at + interval '15 minutes' > now() then 'teste' else 'expirado' end,
+      s.plan, s.paid_until,
+      (select count(*) from public.payment_claims c where c.user_id = p.id and c.status = 'pendente')
+    from public.profiles p left join public.subscriptions s on s.user_id = p.id
+    where coalesce(p_busca, '') = '' or p.handle ilike '%' || p_busca || '%' or p.name ilike '%' || p_busca || '%'
+    order by p.created_at desc limit 500;
+end;
+$$;
+create or replace function public.admin_liberar(p_handle text, p_plano text, p_pedido bigint default null) returns text
+language plpgsql security definer set search_path = public as $$
+declare r text;
+begin
+  if not public.is_admin() then raise exception 'Acesso restrito ao administrador.'; end if;
+  r := public.liberar_assinatura(p_handle, p_plano);
+  if p_pedido is not null then update public.payment_claims set status = 'liberado', decided_at = now() where id = p_pedido; end if;
+  return r;
+end;
+$$;
+create or replace function public.admin_recusar(p_pedido bigint) returns text
+language plpgsql security definer set search_path = public as $$
+begin
+  if not public.is_admin() then raise exception 'Acesso restrito ao administrador.'; end if;
+  update public.payment_claims set status = 'recusado', decided_at = now() where id = p_pedido;
+  return 'Pedido recusado';
+end;
+$$;
+create or replace function public.admin_remover_acesso(p_handle text) returns text
+language plpgsql security definer set search_path = public as $$
+begin
+  if not public.is_admin() then raise exception 'Acesso restrito ao administrador.'; end if;
+  delete from public.subscriptions where user_id = (select id from public.profiles where handle = lower(p_handle));
+  return 'Acesso de @' || lower(p_handle) || ' removido';
+end;
+$$;
+revoke all on function public.admin_pedidos(), public.admin_usuarios(text), public.admin_liberar(text, text, bigint), public.admin_recusar(bigint), public.admin_remover_acesso(text) from public, anon;
+grant execute on function public.admin_pedidos(), public.admin_usuarios(text), public.admin_liberar(text, text, bigint), public.admin_recusar(bigint), public.admin_remover_acesso(text) to authenticated;
