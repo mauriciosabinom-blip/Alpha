@@ -5,8 +5,9 @@
 window.REFRAO_CONFIG = {
   supabaseUrl: 'https://khpterapkxaispzorsav.supabase.co',
   supabaseKey: 'sb_publishable_3AjjP7ROnX0df4hzGZufDA_M52XUs6H',
-  // Opcional: chave gratuita da "YouTube Data API v3" (Google Cloud). Deixa a busca
-  // automática do vídeo 100% confiável. Vazio = usa espelhos públicos gratuitos do YouTube.
+  // Chave gratuita da "YouTube Data API v3" (Google Cloud) para a busca automática do vídeo.
+  // Vazio = sem busca automática (o usuário cola o link do vídeo). Restrinja a chave ao
+  // domínio do app no Google Cloud, porque ela fica visível no código.
   youtubeKey: '',
   // Opcional: chave gratuita do GIPHY (developers.giphy.com) para a aba de GIFs do chat.
   // O app só pede GIFs com classificação "G" (livre para todas as idades).

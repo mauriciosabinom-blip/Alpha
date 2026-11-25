@@ -15,16 +15,9 @@ function loadImg(src, cors) {
     i.onload = () => res(i); i.onerror = rej; i.src = src;
   });
 }
-// capa real (se o servidor permitir usar no canvas) ou a ilustração gerada do app
+// Sempre a ilustração gerada pelo próprio app: a capa do álbum é obra protegida
+// e não deve aparecer na imagem de divulgação do Refrão.
 async function coverImage(song) {
-  if (song.cover) {
-    try {
-      const img = await loadImg(song.cover, true);
-      const t = document.createElement('canvas'); t.width = t.height = 2; t.getContext('2d').drawImage(img, 0, 0, 2, 2);
-      t.getContext('2d').getImageData(0, 0, 1, 1); // falha se a imagem "sujar" o canvas
-      return img;
-    } catch (e) {}
-  }
   return loadImg(artSvg(song));
 }
 let qrLib = null;
