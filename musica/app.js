@@ -814,11 +814,9 @@ function playSnippet() {
 }
 const ytIdFrom = s => (s.match(/(?:youtu\.be\/|[?&]v=|shorts\/|embed\/|live\/)([\w-]{11})/) || s.trim().match(/^([\w-]{11})$/) || [])[1] || null;
 /* ----- busca automática do vídeo -----
- * 1) YouTube Data API (se houver chave no config.js)  2) espelhos públicos Piped (YouTube Music)
- * 3) espelhos públicos Invidious. Prioriza a faixa de áudio oficial ("Artista - Topic"),
- * que é a mesma gravação da letra sincronizada — o tempo das frases bate sem ajuste.        */
-const PIPED = ['https://pipedapi.kavin.rocks', 'https://pipedapi.adminforge.de', 'https://api.piped.private.coffee', 'https://pipedapi.r4fo.com'];
-const INVID = ['https://inv.nadeko.net', 'https://invidious.nerdvpn.de', 'https://yewtu.be', 'https://invidious.privacyredirect.com'];
+ * Só pela YouTube Data API oficial (chave no config.js). Sem chave, não há busca automática:
+ * o usuário pode colar o link do vídeo manualmente. Prioriza a faixa de áudio oficial
+ * ("Artista - Topic"), que é a mesma gravação da letra sincronizada.                        */
 const ytTried = new Set(), ytSearching = new Set();
 async function fetchJSON(url, ms = 7000) {
   const c = new AbortController(), t = setTimeout(() => c.abort(), ms);
@@ -826,22 +824,11 @@ async function fetchJSON(url, ms = 7000) {
   finally { clearTimeout(t); }
 }
 async function searchVideos(song) {
-  const q = encodeURIComponent(`${song.title} ${song.artist}`);
-  if (CFG.youtubeKey) {
-    try {
-      const j = await fetchJSON(`https://www.googleapis.com/youtube/v3/search?part=snippet&type=video&videoEmbeddable=true&maxResults=8&q=${encodeURIComponent(`${song.title} ${song.artist} audio`)}&key=${CFG.youtubeKey}`);
-      const out = (j.items || []).map(i => ({ id: i.id?.videoId, title: i.snippet?.title || '', channel: i.snippet?.channelTitle || '' })).filter(x => x.id);
-      if (out.length) return out;
-    } catch (e) {}
-  }
-  const tries = [
-    ...PIPED.map(b => async () => (await fetchJSON(`${b}/search?q=${q}&filter=music_songs`)).items
-      .map(x => ({ id: (x.url?.match(/v=([\w-]{11})/) || [])[1], title: x.title || '', channel: (x.uploaderName || '') + ' - Topic', dur: x.duration }))),
-    ...INVID.map(b => async () => (await fetchJSON(`${b}/api/v1/search?q=${q}&type=video`))
-      .map(x => ({ id: x.videoId, title: x.title || '', channel: x.author || '', dur: x.lengthSeconds })))
-  ];
-  for (const t of tries) { try { const out = (await t()).filter(x => x.id); if (out.length) return out; } catch (e) {} }
-  return [];
+  if (!CFG.youtubeKey) return [];
+  try {
+    const j = await fetchJSON(`https://www.googleapis.com/youtube/v3/search?part=snippet&type=video&videoEmbeddable=true&maxResults=8&q=${encodeURIComponent(`${song.title} ${song.artist} audio`)}&key=${CFG.youtubeKey}`);
+    return (j.items || []).map(i => ({ id: i.id?.videoId, title: i.snippet?.title || '', channel: i.snippet?.channelTitle || '' })).filter(x => x.id);
+  } catch (e) { return []; }
 }
 function scoreVideo(c, song) {
   const t = norm(c.title), ch = norm(c.channel), st = norm(song.title), ar = norm(song.artist);
