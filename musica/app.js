@@ -827,10 +827,14 @@ async function fetchJSON(url, ms = 7000) {
 }
 async function searchVideos(song) {
   const q = encodeURIComponent(`${song.title} ${song.artist}`);
-  if (CFG.youtubeKey) {
+  // API oficial do YouTube (se a cota do dia acabar, não insiste até amanhã)
+  const offKey = 'refrao.ytKeyOff';
+  if (CFG.youtubeKey && localStorage.getItem(offKey) !== today()) {
     try {
-      const j = await fetchJSON(`https://www.googleapis.com/youtube/v3/search?part=snippet&type=video&videoEmbeddable=true&maxResults=8&q=${encodeURIComponent(`${song.title} ${song.artist} audio`)}&key=${CFG.youtubeKey}`);
-      const out = (j.items || []).map(i => ({ id: i.id?.videoId, title: i.snippet?.title || '', channel: i.snippet?.channelTitle || '' })).filter(x => x.id);
+      const r = await fetch(`https://www.googleapis.com/youtube/v3/search?part=snippet&type=video&videoEmbeddable=true&videoCategoryId=10&maxResults=10&q=${encodeURIComponent(`${song.title} ${song.artist} audio`)}&key=${CFG.youtubeKey}`);
+      const j = await r.json();
+      if (r.status === 403 && /quota/i.test(JSON.stringify(j.error || ''))) localStorage.setItem(offKey, today());
+      const out = (j.items || []).map(i => ({ id: i.id?.videoId, title: (i.snippet?.title || '').replace(/&amp;/g, '&').replace(/&#39;/g, "'").replace(/&quot;/g, '"'), channel: i.snippet?.channelTitle || '' })).filter(x => x.id);
       if (out.length) return out;
     } catch (e) {}
   }

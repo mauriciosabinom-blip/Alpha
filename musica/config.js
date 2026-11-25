@@ -5,9 +5,11 @@
 window.REFRAO_CONFIG = {
   supabaseUrl: 'https://khpterapkxaispzorsav.supabase.co',
   supabaseKey: 'sb_publishable_3AjjP7ROnX0df4hzGZufDA_M52XUs6H',
-  // Opcional: chave gratuita da "YouTube Data API v3" (Google Cloud). Deixa a busca
-  // automática do vídeo 100% confiável. Vazio = usa espelhos públicos gratuitos do YouTube.
-  youtubeKey: '',
+  // Chave da "YouTube Data API v3" (Google Cloud, projeto refrao-515811).
+  // É pública por natureza, mas está travada: só funciona a partir de
+  // https://mauriciosabinom-blip.github.io/* e só para a API do YouTube.
+  // Se a cota grátis do dia acabar, o app usa os espelhos públicos sozinho.
+  youtubeKey: 'AIzaSyCxeBwAIkJBgHqtNPKydC-NMsVnoeu9qbs',
   // Opcional: chave gratuita do GIPHY (developers.giphy.com) para a aba de GIFs do chat.
   // O app só pede GIFs com classificação "G" (livre para todas as idades).
   giphyKey: ''
