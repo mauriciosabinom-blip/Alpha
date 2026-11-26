@@ -358,6 +358,10 @@ function buildPhrases(text) {
 function looksPt(t) {
   return !!t && !/[^\p{Script=Latin}\p{Script=Common}\p{Script=Inherited}]/u.test(t);
 }
+// Correções manuais de palavras soltas: têm prioridade sobre a tradução automática e o cache
+const WORD_FIX = {
+  mercy: 'misericórdia',
+};
 async function gtx(text, sl = 'en', tl = 'pt') {
   const url = `https://translate.googleapis.com/translate_a/single?client=gtx&sl=${sl}&tl=${tl}&dt=t&q=${encodeURIComponent(text)}`;
   const r = await fetch(url); if (!r.ok) throw new Error('gtx ' + r.status);
@@ -653,7 +657,7 @@ async function showWord(el) {
   pop.dataset.word = word;
   speak(word, 0.85);
   const key = word.toLowerCase();
-  let tr = S.words[key];
+  let tr = WORD_FIX[key] || S.words[key];
   if (tr && !looksPt(tr)) { delete S.words[key]; tr = null; } // limpa tradução salva em outro idioma
   if (!tr) { try { tr = await translateOne(word); S.words[key] = tr; save(); } catch (e) { tr = '(sem conexão)'; } }
   if (pop.dataset.word === word) {
