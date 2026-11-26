@@ -369,8 +369,11 @@ async function gtx(text, sl = 'en', tl = 'pt') {
 async function mymemory(text) {
   const r = await fetch(`https://api.mymemory.translated.net/get?langpair=en|pt-BR&q=${encodeURIComponent(text)}`);
   const j = await r.json();
-  const t = j?.responseData?.translatedText;
-  if (!t || /MYMEMORY WARNING/i.test(t) || !looksPt(t)) throw new Error('mymemory');
+  // A 1ª resposta às vezes vem em outro idioma; usa a 1ª opção da lista que esteja em português
+  const ok = t => t && !/MYMEMORY WARNING/i.test(t) && looksPt(t);
+  const main = j?.responseData?.translatedText;
+  const t = ok(main) ? main : (j?.matches || []).map(m => (m.translation || '').trim().replace(/[.\s]+$/, '')).find(ok);
+  if (!t) throw new Error('mymemory');
   return t;
 }
 async function translateOne(text) {
