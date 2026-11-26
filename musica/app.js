@@ -353,17 +353,24 @@ function buildPhrases(text) {
 }
 
 /* ---------------- tradução ---------------- */
+// A tradução tem que estar em português: rejeita respostas com escrita não latina
+// (chinês, coreano, japonês, cirílico, árabe…), que às vezes vêm do MyMemory.
+function looksPt(t) {
+  return !!t && !/[^\p{Script=Latin}\p{Script=Common}\p{Script=Inherited}]/u.test(t);
+}
 async function gtx(text, sl = 'en', tl = 'pt') {
   const url = `https://translate.googleapis.com/translate_a/single?client=gtx&sl=${sl}&tl=${tl}&dt=t&q=${encodeURIComponent(text)}`;
   const r = await fetch(url); if (!r.ok) throw new Error('gtx ' + r.status);
   const j = await r.json();
-  return j[0].map(x => x[0]).join('');
+  const t = j[0].map(x => x[0]).join('');
+  if (!looksPt(t)) throw new Error('gtx idioma');
+  return t;
 }
 async function mymemory(text) {
   const r = await fetch(`https://api.mymemory.translated.net/get?langpair=en|pt-BR&q=${encodeURIComponent(text)}`);
   const j = await r.json();
   const t = j?.responseData?.translatedText;
-  if (!t || /MYMEMORY WARNING/i.test(t)) throw new Error('mymemory');
+  if (!t || /MYMEMORY WARNING/i.test(t) || !looksPt(t)) throw new Error('mymemory');
   return t;
 }
 async function translateOne(text) {
@@ -644,6 +651,7 @@ async function showWord(el) {
   speak(word, 0.85);
   const key = word.toLowerCase();
   let tr = S.words[key];
+  if (tr && !looksPt(tr)) { delete S.words[key]; tr = null; } // limpa tradução salva em outro idioma
   if (!tr) { try { tr = await translateOne(word); S.words[key] = tr; save(); } catch (e) { tr = '(sem conexão)'; } }
   if (pop.dataset.word === word) {
     $('wpTr').textContent = tr;
