@@ -674,3 +674,105 @@ drop trigger if exists messages_receipts on public.messages;
 create trigger messages_receipts before update of read_at, delivered_at on public.messages
   for each row execute function public.messages_receipts();
 update public.messages set delivered_at = read_at where delivered_at is null and read_at is not null;
+
+-- ---------- Sugestões de amizade (faixa na tela inicial) ----------
+-- Status: 'pending' (pendente) · 'accepted' (aceito) · 'declined' (recusado).
+-- Recusar é silencioso: quem pediu não vê o recusado (o pedido só some da lista dele)
+-- e as duas pessoas deixam de aparecer nas sugestões uma da outra por 30 dias.
+alter table public.friendships add column if not exists decided_at timestamptz;
+alter table public.friendships drop constraint if exists friendships_status_check;
+alter table public.friendships add constraint friendships_status_check check (status in ('pending', 'accepted', 'declined'));
+create index if not exists friendships_addressee_idx on public.friendships (addressee, status);
+
+drop policy if exists "ver minhas amizades" on public.friendships;
+create policy "ver minhas amizades" on public.friendships
+  for select to authenticated using (addressee = auth.uid() or (requester = auth.uid() and status <> 'declined'));
+drop policy if exists "aceitar amizade" on public.friendships;
+create policy "aceitar amizade" on public.friendships
+  for update to authenticated using (addressee = auth.uid() and status <> 'accepted')
+  with check (addressee = auth.uid() and status in ('accepted', 'declined'));
+
+-- pedir amizade (botão "Conectar" / "Adicionar")
+-- · se a outra pessoa já tinha me pedido → viramos amigos na hora
+-- · se ela recusou há menos de 30 dias → nada muda e ela não é avisada de novo
+create or replace function public.pedir_amizade(p_user uuid) returns text
+language plpgsql security definer set search_path = public as $$
+declare me uuid := auth.uid(); f public.friendships;
+begin
+  if me is null then raise exception 'Entre na sua conta.'; end if;
+  if p_user is null or p_user = me or not exists (select 1 from profiles where id = p_user) then raise exception 'Usuário não encontrado.'; end if;
+  -- ela já tinha me pedido (pendente, ou eu recusei antes e mudei de ideia)
+  select * into f from friendships where requester = p_user and addressee = me for update;
+  if found then
+    if f.status <> 'accepted' then update friendships set status = 'accepted', decided_at = now() where id = f.id; end if;
+    return 'accepted';
+  end if;
+  select * into f from friendships where requester = me and addressee = p_user for update;
+  if not found then
+    insert into friendships (requester, addressee) values (me, p_user);
+    return 'pending';
+  end if;
+  if f.status = 'declined' and f.decided_at < now() - interval '30 days' then
+    -- passou o tempo: o pedido volta como novo
+    update friendships set status = 'pending', created_at = now(), decided_at = null where id = f.id;
+  end if;
+  return case when f.status = 'accepted' then 'accepted' else 'pending' end;
+end $$;
+
+-- responder a um pedido que recebi: aceitar (true) ou recusar (false)
+create or replace function public.responder_amizade(p_id bigint, p_aceitar boolean) returns text
+language plpgsql security definer set search_path = public as $$
+begin
+  update friendships set status = case when p_aceitar then 'accepted' else 'declined' end, decided_at = now()
+   where id = p_id and addressee = auth.uid() and status <> 'accepted';
+  if not found then raise exception 'Pedido não encontrado.'; end if;
+  return case when p_aceitar then 'accepted' else 'declined' end;
+end $$;
+
+-- cancelar um pedido que eu enviei e ainda está pendente
+create or replace function public.cancelar_pedido(p_user uuid) returns text
+language plpgsql security definer set search_path = public as $$
+begin
+  delete from friendships where requester = auth.uid() and addressee = p_user and status = 'pending';
+  return 'ok';
+end $$;
+
+-- sugestões: 1º quem estuda as mesmas músicas, depois os mais ativos.
+-- Nunca: eu mesmo, amigos, pedidos pendentes (nos dois sentidos) e recusados há menos de 30 dias.
+-- Só devolve perfil público (nome, @, avatar) — as músicas de cada um continuam privadas.
+create or replace function public.sugestoes_amizade(p_limite int default 10)
+returns table (id uuid, handle text, name text, avatar jsonb, em_comum int)
+language sql stable security definer set search_path = public as $$
+  with me as (select auth.uid() as uid),
+  minhas as (
+    select distinct lower(trim(s ->> 'title')) || '|' || lower(trim(s ->> 'artist')) as k
+      from user_state us, jsonb_each(coalesce(us.data -> 'songs', '{}')) as e(sid, s), me
+     where us.user_id = me.uid and jsonb_typeof(us.data -> 'songs') = 'object' and coalesce(s ->> 'title', '') <> ''
+  ),
+  fora as (
+    select case when f.requester = me.uid then f.addressee else f.requester end as uid
+      from friendships f, me
+     where me.uid in (f.requester, f.addressee)
+       and (f.status in ('pending', 'accepted') or f.decided_at > now() - interval '30 days')
+  ),
+  cand as (
+    select p.id, p.handle, p.name, p.avatar, us.data, us.updated_at
+      from profiles p left join user_state us on us.user_id = p.id, me
+     where me.uid is not null and p.id <> me.uid and p.id not in (select uid from fora)
+  )
+  select c.id, c.handle, split_part(trim(c.name), ' ', 1), c.avatar,
+         (select count(distinct lower(trim(s ->> 'title')) || '|' || lower(trim(s ->> 'artist')))::int
+            from jsonb_each(case when jsonb_typeof(c.data -> 'songs') = 'object' then c.data -> 'songs' else '{}' end) as e(sid, s)
+           where lower(trim(s ->> 'title')) || '|' || lower(trim(s ->> 'artist')) in (select k from minhas)) as em_comum
+    from cand c
+   order by em_comum desc,
+            (select count(*) from jsonb_array_elements_text(case when jsonb_typeof(c.data -> 'days') = 'array' then c.data -> 'days' else '[]' end) d
+              where d >= to_char(now() - interval '30 days', 'YYYY-MM-DD')) desc,
+            c.updated_at desc nulls last
+   limit greatest(1, least(coalesce(p_limite, 10), 10));
+$$;
+
+revoke all on function public.pedir_amizade(uuid), public.responder_amizade(bigint, boolean),
+  public.cancelar_pedido(uuid), public.sugestoes_amizade(int) from public, anon;
+grant execute on function public.pedir_amizade(uuid), public.responder_amizade(bigint, boolean),
+  public.cancelar_pedido(uuid), public.sugestoes_amizade(int) to authenticated;

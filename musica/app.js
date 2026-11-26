@@ -141,7 +141,7 @@ function applyTheme(song) {
 /* ---------------- telas ---------------- */
 const SCREENS = ['home', 'pick', 'confirm', 'loading', 'lyrics', 'settings', 'login', 'social', 'chat', 'profile'];
 let current = 'home';
-function show(id) { SCREENS.forEach(s => $(s).classList.toggle('hidden', s !== id)); current = id; window.scrollTo(0, 0); if (id === 'home') { renderHome(); window.Tour?.maybe(); } }
+function show(id) { SCREENS.forEach(s => $(s).classList.toggle('hidden', s !== id)); current = id; window.scrollTo(0, 0); if (id === 'home') { renderHome(); window.Tour?.maybe(); window.Sugestoes?.onHome(); } }
 
 /* ---------------- dia / sequência ---------------- */
 function rollDay() {

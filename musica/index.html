@@ -137,11 +137,14 @@
     <div class="brand"><span class="logo">♪</span>Refrão</div>
     <div class="stats">
       <span class="chip" id="streakChip" title="Dias seguidos estudando">🔥 0</span>
+      <button class="icon-btn social-btn hidden" id="btnBell" aria-label="Pedidos de amizade">🔔<span id="bellBadge" class="badge hidden">0</span></button>
       <button class="icon-btn social-btn" id="btnSocial" aria-label="Amigos e conversas">💬<span id="socialBadge" class="badge hidden">0</span></button>
       <button class="icon-btn" id="btnShare" aria-label="Compartilhar">📤</button>
       <button class="icon-btn" id="btnSettings" aria-label="Ajustes">⚙️</button>
     </div>
   </header>
+  <div id="bellPanel" class="bell-panel glass hidden" role="dialog" aria-label="Pedidos de amizade"></div>
+  <div id="suggest" class="suggest hidden" aria-label="Sugestões de amizade"></div>
 
   <button class="trial-bar hidden" id="trialChip">⏳ Teste grátis</button>
   <div id="hero" class="hero"></div>
@@ -605,10 +608,11 @@
 <script src="vendor/supabase.js?v=18"></script>
 <script src="config.js?v=35"></script>
 <script src="moderacao.js?v=18"></script>
-<script src="app.js?v=35"></script>
+<script src="app.js?v=36"></script>
 <script src="share.js?v=32"></script>
 <script src="karaoke.js?v=23"></script>
-<script src="social.js?v=34"></script>
+<script src="social.js?v=35"></script>
+<script src="sugestoes.js?v=1"></script>
 <script src="duet.js?v=20"></script>
 <script src="push.js?v=23"></script>
 <script src="sync.js?v=31"></script>

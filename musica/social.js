@@ -56,11 +56,14 @@ const Social = (() => {
       sb.from('messages').update({ delivered_at: nowIso() }).eq('receiver', me.id).is('delivered_at', null).then(() => {});
     renderBadge();
     if (current === 'social') renderSocial();
+    window.Sugestoes?.sync();
   }
+  // 💬 = mensagens não lidas · 🔔 = pedidos de amizade (ver sugestoes.js) · ícone do app = os dois
   function renderBadge() {
-    const n = Object.values(unread).reduce((a, b) => a + b, 0) + friendships.filter(f => f.status === 'pending' && f.addressee === me?.id).length;
+    const n = Object.values(unread).reduce((a, b) => a + b, 0), reqs = friendships.filter(f => f.status === 'pending' && f.addressee === me?.id).length;
     const b = $('socialBadge'); b.textContent = n > 9 ? '9+' : n; b.classList.toggle('hidden', !n);
-    try { n ? navigator.setAppBadge?.(n) : navigator.clearAppBadge?.(); } catch (e) {}
+    window.Sugestoes?.renderBell();
+    try { n + reqs ? navigator.setAppBadge?.(n + reqs) : navigator.clearAppBadge?.(); } catch (e) {}
   }
 
   /* ---------- tempo real ---------- */
@@ -120,7 +123,7 @@ const Social = (() => {
       .sort((a, b) => (lastByFriend[b]?.created_at || '').localeCompare(lastByFriend[a]?.created_at || ''));
     $('socialRequests').innerHTML = incoming.length ? `<h4>Pedidos de amizade</h4>` + incoming.map(f => { const p = who(f.requester);
       return `<div class="person glass">${avatar(p)}<div class="pinfo"><b>${esc(p.name)}</b><span class="muted small">@${esc(p.handle)}</span></div>
-        <button class="btn primary sm" data-accept="${f.id}">Aceitar</button><button class="btn sm" data-del="${f.id}" aria-label="Recusar">✕</button></div>`; }).join('') : '';
+        <button class="btn primary sm" data-accept="${f.id}">Aceitar</button><button class="btn sm" data-decline="${f.id}" aria-label="Recusar">✕</button></div>`; }).join('') : '';
     $('socialFriends').innerHTML = `<h4>Conversas</h4>` + (friends.length ? friends.map(id => { const p = who(id), last = lastByFriend[id], n = unread[id] || 0;
       const prev = last ? (window.Duet?.isInvite(last.body) ? '🎤 Convite para cantar' : (last.sender === me.id ? 'Você: ' : '') + (last.kind === 'sticker' ? last.body + ' Figurinha' : last.body)) : 'Diga oi! 👋';
       return `<button class="person glass chatrow" data-chat="${esc(id)}">${avatar(p)}<div class="pinfo"><b>${esc(p.name)} <span class="muted small">@${esc(p.handle)}</span></b>
@@ -128,7 +131,7 @@ const Social = (() => {
       : `<div class="empty-social muted">Nenhum amigo ainda. Busque alguém pelo @usuário aqui em cima 🔎</div>`);
     $('socialSent').innerHTML = outgoing.length ? `<h4>Pedidos enviados</h4>` + outgoing.map(f => { const p = who(f.addressee);
       return `<div class="person glass">${avatar(p)}<div class="pinfo"><b>${esc(p.name)}</b><span class="muted small">@${esc(p.handle)} · aguardando</span></div>
-        <button class="btn sm" data-del="${f.id}">Cancelar</button></div>`; }).join('') : '';
+        <button class="btn sm" data-cancel="${esc(f.addressee)}">Cancelar</button></div>`; }).join('') : '';
     window.Profile?.hydrate($('social'));
   }
   let searchTimer = null;
@@ -147,6 +150,13 @@ const Social = (() => {
     }).join('') : `<div class="muted small center">Ninguém com @${esc(h)}…</div>`;
   }
   async function act(fn) { if (busy) return; busy = true; try { await fn(); await refresh(); } catch (e) { toast(errText(e)); } finally { busy = false; } }
+
+  /* ---------- pedidos de amizade (rotas no servidor — ver supabase.sql) ---------- */
+  // pedir: se a outra pessoa já tinha me pedido, viramos amigos na hora → devolve 'accepted'
+  async function request(id) { const r = await sb.rpc('pedir_amizade', { p_user: id }); if (r.error) throw r.error; return r.data; }
+  async function respond(fid, ok) { const r = await sb.rpc('responder_amizade', { p_id: Number(fid), p_aceitar: ok }); if (r.error) throw r.error; return r.data; }
+  async function cancelRequest(id) { const r = await sb.rpc('cancelar_pedido', { p_user: id }); if (r.error) throw r.error; }
+  const accepted = () => { toast('🤝 Agora vocês são amigos!'); setTimeout(() => window.Push?.maybeAsk('friend'), 2500); };
 
   /* ---------- tela: conversa ---------- */
   async function openChat(id) {
@@ -213,15 +223,14 @@ const Social = (() => {
   $('socialRelogin').onclick = () => { localStorage.removeItem('refrao.auth'); location.reload(); };
   $('socialSearch').oninput = e => { clearTimeout(searchTimer); searchTimer = setTimeout(() => search(e.target.value), 300); };
   $('social').onclick = e => {
-    const t = e.target.closest('[data-add],[data-accept],[data-del],[data-chat]'); if (!t) return;
+    const t = e.target.closest('[data-add],[data-accept],[data-decline],[data-cancel],[data-chat]'); if (!t) return;
     if (t.dataset.add) act(async () => {
-      const id = t.dataset.add;
-      const rev = friendships.find(f => f.requester === id && f.addressee === me.id);
-      const r = rev ? await sb.from('friendships').update({ status: 'accepted' }).eq('id', rev.id) : await sb.from('friendships').insert({ requester: me.id, addressee: id });
-      if (r.error) throw r.error; toast(rev ? '🤝 Agora vocês são amigos!' : '✓ Pedido de amizade enviado'); $('socialSearch').value = ''; $('socialResults').innerHTML = '';
+      const st = await request(t.dataset.add);
+      st === 'accepted' ? accepted() : toast('✓ Pedido de amizade enviado'); $('socialSearch').value = ''; $('socialResults').innerHTML = '';
     });
-    if (t.dataset.accept) act(async () => { const r = await sb.from('friendships').update({ status: 'accepted' }).eq('id', t.dataset.accept); if (r.error) throw r.error; toast('🤝 Agora vocês são amigos!'); $('socialResults').innerHTML = ''; setTimeout(() => window.Push?.maybeAsk('friend'), 2500); });
-    if (t.dataset.del) act(async () => { const r = await sb.from('friendships').delete().eq('id', t.dataset.del); if (r.error) throw r.error; });
+    if (t.dataset.accept) act(async () => { await respond(t.dataset.accept, true); accepted(); $('socialResults').innerHTML = ''; });
+    if (t.dataset.decline) act(async () => { await respond(t.dataset.decline, false); });
+    if (t.dataset.cancel) act(async () => { await cancelRequest(t.dataset.cancel); });
     if (t.dataset.chat) openChat(t.dataset.chat);
   };
   $('chatBack').onclick = () => { chatWith = null; show('social'); renderSocial(); };
@@ -246,7 +255,7 @@ const Social = (() => {
   return {
     refreshMe() { if (me) delete profiles[me.id]; },
     async start(session) {
-      if (!session || !sb) { me = null; $('socialBadge').classList.add('hidden'); return; }
+      if (!session || !sb) { me = null; $('socialBadge').classList.add('hidden'); window.Sugestoes?.sync(); return; }
       if (me?.id === session.user.id) return;
       me = { id: session.user.id };
       try { subscribe(session); await refresh(); } catch (e) { /* sem conexão: tenta de novo ao abrir a tela */ }
@@ -254,7 +263,8 @@ const Social = (() => {
     },
     stop() { if (live) sb.removeChannel(live); live = null; me = null; },
     send: (text) => send(text, true), sendMedia,
-    get me() { return me; }, who, openChat, refresh
+    get me() { return me; }, who, openChat, refresh,
+    get friendships() { return friendships; }, loadProfiles, avatar, errText, act, request, respond, cancelRequest, accepted
   };
 })();
 window.Social = Social;
