@@ -13,6 +13,10 @@ const Push = (() => {
   const standalone = () => navigator.standalone === true || matchMedia('(display-mode: standalone)').matches;
   const supported = () => 'serviceWorker' in navigator && 'PushManager' in window && 'Notification' in window;
   const b64 = s => { const p = '='.repeat((4 - s.length % 4) % 4), raw = atob((s + p).replace(/-/g, '+').replace(/_/g, '/')); return Uint8Array.from(raw, c => c.charCodeAt(0)); };
+  // silenciar: tira este aparelho da lista do servidor (para de chegar aviso) e corta o som dentro do app.
+  // O aparelho continua inscrito no navegador, então reativar é instantâneo, sem pedir permissão de novo.
+  const muteKey = () => `refrao.mute:${getSession()?.handle || ''}`;
+  const muted = () => localStorage.getItem(muteKey()) === '1';
   async function currentSub() { try { const r = await navigator.serviceWorker.ready; return await r.pushManager.getSubscription(); } catch (e) { return null; } }
 
   // 'on' | 'off' | 'denied' | 'install' (iPhone fora do ícone) | 'unsupported' | 'nologin'
@@ -35,8 +39,39 @@ const Push = (() => {
       : 'Este navegador não recebe notificações. No Android, use o Chrome (ou o app instalado).',
     nologin: ''
   };
+  function renderMute() {
+    const b = $('btnMute'); if (!b) return;
+    const m = muted();
+    b.textContent = m ? '🔕' : '🔔';
+    b.classList.toggle('on', m);
+    b.title = b.ariaLabel = m ? 'Notificações silenciadas — toque para reativar' : 'Silenciar notificações';
+  }
+  async function toggleMute() {
+    if (!muted()) {
+      localStorage.setItem(muteKey(), '1'); renderMute();
+      const sub = await currentSub();
+      if (sub && sb) { try { await sb.rpc('delete_push_subscription', { p_endpoint: sub.endpoint }); } catch (e) {} }
+      toast('🔕 Notificações silenciadas', 2500);
+    } else {
+      localStorage.removeItem(muteKey()); renderMute();
+      const sub = await currentSub();
+      if (sub && sb && Notification.permission === 'granted') {
+        const j = sub.toJSON();
+        try { await sb.rpc('save_push_subscription', { p_endpoint: j.endpoint, p_p256dh: j.keys.p256dh, p_auth: j.keys.auth }); } catch (e) {}
+      }
+      toast('🔔 Notificações de volta', 2500);
+    }
+    render();
+  }
   async function render() {
+    renderMute();
     const st = await state();
+    if (st === 'on' && muted()) {
+      $('pushBox').classList.remove('hidden'); $('pushBanner').classList.add('hidden');
+      $('pushStatus').textContent = '🔕 Silenciadas neste aparelho (toque no 🔕 pequeno na tela de amigos para reativar).';
+      $('pushBtn').classList.remove('hidden'); $('pushBtn').textContent = '🔔 Reativar avisos';
+      return st;
+    }
     $('pushBox').classList.toggle('hidden', st === 'nologin');
     $('pushStatus').textContent = TEXT[st];
     $('pushBtn').classList.toggle('hidden', !(st === 'on' || st === 'off'));
@@ -48,6 +83,7 @@ const Push = (() => {
     return st;
   }
   async function enable() {
+    localStorage.removeItem(muteKey());
     const st = await state();
     if (st === 'install' || st === 'unsupported' || st === 'denied') { toast(TEXT[st], 7000); return; }
     // pedir permissão precisa ser direto no toque
@@ -81,6 +117,7 @@ const Push = (() => {
   const unlock = () => { try { ac = ac || new (window.AudioContext || window.webkitAudioContext)(); if (ac.state === 'suspended') ac.resume(); } catch (e) {} };
   document.addEventListener('pointerdown', unlock, { passive: true });
   function chime() {
+    if (muted()) return;
     if (window.ChatPlus) return ChatPlus.playTone();
     if (!ac || ac.state !== 'running') return;
     const t0 = ac.currentTime + 0.02;
@@ -101,9 +138,15 @@ const Push = (() => {
     await Social.refresh().catch(() => {});
     Social.openChat(id);
   }
-  navigator.serviceWorker?.addEventListener('message', e => { if (e.data?.openChat) openChatWhenReady(e.data.openChat); });
-  const startChat = new URLSearchParams(location.search).get('chat');
-  if (startChat) { history.replaceState(null, '', location.pathname); if (getSession()) openChatWhenReady(startChat); }
+  async function openSocialWhenReady() {
+    for (let i = 0; i < 40 && !window.Social?.me; i++) await new Promise(r => setTimeout(r, 250));
+    if (window.Social?.me) Social.openSocial();
+  }
+  navigator.serviceWorker?.addEventListener('message', e => { if (e.data?.openChat) openChatWhenReady(e.data.openChat); if (e.data?.openSocial) openSocialWhenReady(); });
+  const qs = new URLSearchParams(location.search), startChat = qs.get('chat'), startSocial = qs.has('social');
+  if (startChat || startSocial) history.replaceState(null, '', location.pathname);
+  if (startChat && getSession()) openChatWhenReady(startChat);
+  else if (startSocial && getSession()) openSocialWhenReady();
   // ao abrir o app, limpa o número do ícone e as notificações já vistas
   const clearBadge = () => { if (document.hidden) return; navigator.clearAppBadge?.().catch(() => {}); navigator.serviceWorker?.ready.then(r => r.getNotifications()).then(ns => ns.forEach(n => n.close())).catch(() => {}); };
   document.addEventListener('visibilitychange', clearBadge); clearBadge();
@@ -155,9 +198,10 @@ const Push = (() => {
   if ($('installBtn')) $('installBtn').onclick = install;
   renderInstall();
 
-  $('pushBtn').onclick = async () => ((await state()) === 'on' ? disable() : enable());
+  $('pushBtn').onclick = async () => (muted() ? toggleMute() : (await state()) === 'on' ? disable() : enable());
+  if ($('btnMute')) $('btnMute').onclick = toggleMute;
   $('pushBannerBtn').onclick = enable;
-  return { render, enable, forget, chime, state, maybeAsk, install, isAndroid, isIOS };
+  return { render, enable, forget, chime, state, muted, toggleMute, maybeAsk, install, isAndroid, isIOS };
 })();
 window.Push = Push;
 Push.render();

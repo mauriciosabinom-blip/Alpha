@@ -1,5 +1,5 @@
 // Service worker: deixa o app abrir mesmo sem internet (o estudo funciona offline).
-const CACHE = 'refrao-v38';
+const CACHE = 'refrao-v39';
 const SHELL = ['./', 'index.html', 'manifest.webmanifest', 'icon.svg', 'icon-192.png', 'icon-512.png'];
 self.addEventListener('install', e => { e.waitUntil(caches.open(CACHE).then(c => c.addAll(SHELL))); self.skipWaiting(); });
 self.addEventListener('activate', e => {
@@ -40,6 +40,7 @@ self.addEventListener('notificationclick', e => {
         await w.focus();
         const chat = new URL(url).searchParams.get('chat');
         if (chat) w.postMessage({ openChat: chat });
+        else if (new URL(url).searchParams.has('social')) w.postMessage({ openSocial: true });
         return;
       }
     }

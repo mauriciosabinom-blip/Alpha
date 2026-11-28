@@ -14,7 +14,7 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,500;9..144,600;9..144,700;9..144,800&family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="style.css?v=33">
+<link rel="stylesheet" href="style.css?v=34">
 </head>
 <body>
 <div id="bgArt"></div><div id="bgShade"></div>
@@ -51,7 +51,7 @@
   <header class="topbar">
     <button class="icon-btn" id="socialBack" aria-label="Voltar">←</button>
     <div class="brand" style="font-size:1.15rem">Amigos e conversas</div>
-    <button class="icon-btn" id="btnLook" aria-label="Aparência do chat">🎨</button>
+    <div class="top-right"><button class="mute-btn" id="btnMute" aria-label="Silenciar notificações" title="Silenciar notificações">🔔</button><button class="icon-btn" id="btnLook" aria-label="Aparência do chat">🎨</button></div>
   </header>
   <div id="socialMe" class="me-card"></div>
   <div id="socialOff" class="tip glass hidden">
@@ -144,10 +144,12 @@
   </header>
 
   <button class="trial-bar hidden" id="trialChip">⏳ Teste grátis</button>
+  <div id="friendReqCard" class="freq-card hidden"></div>
   <div id="hero" class="hero"></div>
 
   <div class="actions">
     <button class="btn primary big" id="btnStudy">▶&nbsp; Estudar agora</button>
+    <button class="btn hard-btn hidden" id="btnHard">💪 Treinar só as difíceis <small id="hardCount"></small></button>
     <div class="row">
       <button class="btn" id="btnLyrics">📜 Letra</button>
       <button class="btn" id="btnKaraoke">🎤 Karaokê</button>
@@ -605,12 +607,12 @@
 <script src="vendor/supabase.js?v=18"></script>
 <script src="config.js?v=35"></script>
 <script src="moderacao.js?v=18"></script>
-<script src="app.js?v=38"></script>
+<script src="app.js?v=39"></script>
 <script src="share.js?v=32"></script>
 <script src="karaoke.js?v=23"></script>
-<script src="social.js?v=34"></script>
+<script src="social.js?v=35"></script>
 <script src="duet.js?v=20"></script>
-<script src="push.js?v=23"></script>
+<script src="push.js?v=24"></script>
 <script src="sync.js?v=31"></script>
 <script src="chatplus.js?v=23"></script>
 <script src="profile.js?v=24"></script>

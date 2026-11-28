@@ -1,0 +1,80 @@
+<!doctype html>
+<html lang="pt-br">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Refrão · Avisos de amizade</title>
+<style>
+  :root{--bg:#0f0c1a;--text:#f7f4ff;--muted:#b4aecb;--line:rgba(255,255,255,.14);--a:#8b5cf6;--b:#ec4899}
+  body{margin:0;background:var(--bg);color:var(--text);font-family:system-ui,-apple-system,"Segoe UI",Roboto,sans-serif}
+  main{max-width:720px;margin:0 auto;padding:20px 16px}
+  h1{font-size:1.3rem;margin:0 0 8px}
+  ol{color:var(--muted);line-height:1.6;padding-left:20px;margin:0 0 16px}
+  ol b{color:var(--text)}
+  a{color:#f9a8d4}
+  button{width:100%;border:0;border-radius:14px;padding:16px;font-size:1.1rem;font-weight:700;color:#fff;background:linear-gradient(135deg,var(--a),var(--b))}
+  #ok{display:block;text-align:center;margin-top:10px;color:#34d399;font-weight:700;min-height:1.3em}
+  pre{background:rgba(255,255,255,.06);border:1px solid var(--line);border-radius:14px;padding:14px;font-size:.78rem;white-space:pre-wrap;word-break:break-word}
+</style>
+</head>
+<body>
+<main>
+  <h1>Refrão · avisos de pedido de amizade</h1>
+  <p style="color:var(--muted);margin:0 0 14px">São 2 passos rápidos. Dá para fazer pelo celular.</p>
+  <h2 style="font-size:1.05rem">Passo 1 · Atualizar a função <b>notify</b></h2>
+  <ol>
+    <li>Toque em <b>Copiar a função</b>.</li>
+    <li>Abra as <a href="https://supabase.com/dashboard/project/khpterapkxaispzorsav/functions" target="_blank" rel="noopener">Edge Functions do Supabase</a> → <b>notify</b> → <b>Code</b>.</li>
+    <li>Apague todo o código, cole o novo e toque em <b>Deploy</b>.</li>
+  </ol>
+  <button id="copyFn">📋 Copiar a função</button><span id="okFn" class="ok"></span>
+  <pre id="fn" style="max-height:30vh;overflow:auto">Carregando…</pre>
+  <h2 style="font-size:1.05rem;margin-top:22px">Passo 2 · Ligar o aviso no banco</h2>
+  <ol>
+    <li>Toque em <b>Copiar o SQL</b>.</li>
+    <li>Abra o <a href="https://supabase.com/dashboard/project/khpterapkxaispzorsav/sql/new" target="_blank" rel="noopener">SQL Editor do Supabase</a>, cole e toque em <b>Run</b>.</li>
+    <li>Em <b>Results</b> deve aparecer <b>avisos de amizade ativados</b>.</li>
+  </ol>
+  <button id="copySql">📋 Copiar o SQL</button><span id="okSql" class="ok"></span>
+  <pre id="sql">-- ---------- Notificação (push) de pedido de amizade e de amizade aceita ----------
+-- Usa a mesma função &quot;notify&quot; das mensagens (precisa da versão nova do notify.ts).
+create or replace function public.notify_friendship() returns trigger
+language plpgsql security definer set search_path = public, extensions as $$
+declare s text;
+begin
+  select value into s from app_secrets where key = &#x27;push_secret&#x27;;
+  if tg_op = &#x27;INSERT&#x27; and new.status = &#x27;pending&#x27; then
+    perform net.http_post(
+      url := &#x27;https://khpterapkxaispzorsav.supabase.co/functions/v1/notify&#x27;,
+      body := jsonb_build_object(&#x27;type&#x27;, &#x27;friend&#x27;, &#x27;sender&#x27;, new.requester, &#x27;receiver&#x27;, new.addressee),
+      headers := jsonb_build_object(&#x27;Content-Type&#x27;, &#x27;application/json&#x27;, &#x27;x-refrao-secret&#x27;, s));
+  elsif tg_op = &#x27;UPDATE&#x27; and new.status = &#x27;accepted&#x27; and old.status = &#x27;pending&#x27; then
+    perform net.http_post(
+      url := &#x27;https://khpterapkxaispzorsav.supabase.co/functions/v1/notify&#x27;,
+      body := jsonb_build_object(&#x27;type&#x27;, &#x27;friend_ok&#x27;, &#x27;sender&#x27;, new.addressee, &#x27;receiver&#x27;, new.requester),
+      headers := jsonb_build_object(&#x27;Content-Type&#x27;, &#x27;application/json&#x27;, &#x27;x-refrao-secret&#x27;, s));
+  end if;
+  return new;
+exception when others then
+  return new; -- nunca impede o pedido de amizade
+end;
+$$;
+drop trigger if exists friendships_push on public.friendships;
+create trigger friendships_push after insert or update of status on public.friendships
+  for each row execute procedure public.notify_friendship();
+select &#x27;avisos de amizade ativados&#x27; as resultado;</pre>
+</main>
+<style>.ok{display:block;text-align:center;margin-top:10px;color:#34d399;font-weight:700;min-height:1.3em}</style>
+<script>
+  fetch('notify.ts?_=' + Date.now(), { cache: 'no-store' }).then(r => r.text()).then(t => { document.getElementById('fn').textContent = t; })
+    .catch(() => { document.getElementById('fn').textContent = 'Não consegui carregar. Recarregue a página.'; });
+  const copy = (preId, okId, msg) => async () => {
+    const pre = document.getElementById(preId), ok = document.getElementById(okId);
+    try { await navigator.clipboard.writeText(pre.textContent); ok.textContent = msg; }
+    catch (e) { const r = document.createRange(); r.selectNodeContents(pre); getSelection().removeAllRanges(); getSelection().addRange(r); ok.textContent = 'Texto selecionado — toque em Copiar no menu.'; }
+  };
+  document.getElementById('copyFn').onclick = copy('fn', 'okFn', '✓ Copiado! Cole no código da função notify e toque em Deploy.');
+  document.getElementById('copySql').onclick = copy('sql', 'okSql', '✓ Copiado! Cole no SQL Editor e toque em Run.');
+</script>
+</body>
+</html>

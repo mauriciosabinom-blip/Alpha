@@ -674,3 +674,31 @@ drop trigger if exists messages_receipts on public.messages;
 create trigger messages_receipts before update of read_at, delivered_at on public.messages
   for each row execute function public.messages_receipts();
 update public.messages set delivered_at = read_at where delivered_at is null and read_at is not null;
+
+-- ---------- Notificação (push) de pedido de amizade e de amizade aceita ----------
+-- Usa a mesma função "notify" das mensagens (precisa da versão nova do notify.ts).
+create or replace function public.notify_friendship() returns trigger
+language plpgsql security definer set search_path = public, extensions as $$
+declare s text;
+begin
+  select value into s from app_secrets where key = 'push_secret';
+  if tg_op = 'INSERT' and new.status = 'pending' then
+    perform net.http_post(
+      url := 'https://khpterapkxaispzorsav.supabase.co/functions/v1/notify',
+      body := jsonb_build_object('type', 'friend', 'sender', new.requester, 'receiver', new.addressee),
+      headers := jsonb_build_object('Content-Type', 'application/json', 'x-refrao-secret', s));
+  elsif tg_op = 'UPDATE' and new.status = 'accepted' and old.status = 'pending' then
+    perform net.http_post(
+      url := 'https://khpterapkxaispzorsav.supabase.co/functions/v1/notify',
+      body := jsonb_build_object('type', 'friend_ok', 'sender', new.addressee, 'receiver', new.requester),
+      headers := jsonb_build_object('Content-Type', 'application/json', 'x-refrao-secret', s));
+  end if;
+  return new;
+exception when others then
+  return new; -- nunca impede o pedido de amizade
+end;
+$$;
+drop trigger if exists friendships_push on public.friendships;
+create trigger friendships_push after insert or update of status on public.friendships
+  for each row execute procedure public.notify_friendship();
+select 'avisos de amizade ativados' as resultado;

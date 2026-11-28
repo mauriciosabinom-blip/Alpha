@@ -45,5 +45,16 @@ O chat está sendo testado dentro do Refrão, mas **no futuro vai virar um app �
 - **Pontos de atenção para o app de adolescentes:** moderação de áudio/foto (não há filtro automático gratuito), botão de denunciar/bloquear, regras de idade e consentimento dos pais (LGPD/ECA), termos de uso, contas de pais/responsáveis.
 - O toque de notificação personalizado e mais longo só é possível num app nativo (App Store / Play Store).
 
+## 6. Chamada de vídeo própria — "Ao Vivo" 🎥 📝 registrado em 28/11/2026 (não executar ainda)
+Amigos fazerem chamada de vídeo dentro do Refrão, com nome próprio. Sugestão de nome: **"Ao Vivo"** (termo de música, todo mundo entende: "chamar fulano Ao Vivo"). Alternativas: "Cara a Cara", "Palco".
+- **É possível?** Sim. O navegador já tem a tecnologia de chamada de vídeo embutida (WebRTC), a mesma do Google Meet. O vídeo vai direto de um celular para o outro; nosso servidor só faz a "apresentação" entre os dois aparelhos — e isso o Supabase Realtime já faz hoje no Dueto.
+- **Custo:** na maioria das chamadas, zero (o vídeo não passa por servidor nosso). Mas parte das conexões (estimativa comum: 15% a 20%, pode ser mais no 4G do Brasil) não consegue ligar direto e precisa de um "retransmissor" (servidor TURN).
+  - Cloudflare Realtime TURN: **1.000 GB grátis por mês**, depois US$ 0,05 por GB.
+  - Uma hora de vídeo retransmitida gasta por volta de 0,5 a 1 GB → a cota grátis cobre algo como 1 a 2 mil horas retransmitidas por mês (≈ 5 a 10 mil horas de chamadas no total).
+  - Passando disso: cerca de R$ 0,15 a R$ 0,30 por hora retransmitida. Barato perto de R$ 9,99 por assinante.
+- **Dá para ser sem custo?** Dá, enquanto o app for pequeno (cota grátis da Cloudflare). Totalmente grátis para sempre só sem retransmissor, mas aí parte das chamadas falharia — não vale para um app pago.
+- **Só 1 a 1.** Chamada em grupo exige outro tipo de servidor (SFU) e aí o custo sobe; deixar para depois.
+- **Pontos de atenção:** moderação (vídeo não tem filtro automático grátis; só entre amigos aceitos + botão de denunciar/bloquear), regras para menores (LGPD/ECA — importante para o futuro app de adolescentes), e no iPhone a chamada só toca com o app aberto (app web não recebe "ligação" com tela bloqueada; só notificação).
+
 ## Ordem sugerida
 1. Ativar o login (Supabase) → 2. Karaokê com nota de pronúncia (funciona sem servidor) → 3. Rede social/chat → 4. Karaokê online.

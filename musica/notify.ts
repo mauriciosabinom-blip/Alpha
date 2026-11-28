@@ -79,7 +79,8 @@ Deno.serve(async (req) => {
     // só o gatilho do banco (que conhece a senha interna) pode mandar notificações — sem senha válida, recusa sempre
     const secret = await getSecret("push_secret");
     if (!secret || req.headers.get("x-refrao-secret") !== secret) return json({ error: "forbidden" }, 403);
-    const m = await req.json() as { sender: string; receiver: string; body: string };
+    // type: 'message' (padrão) | 'friend' (pedido de amizade) | 'friend_ok' (pedido aceito)
+    const m = await req.json() as { sender: string; receiver: string; body?: string; type?: string };
     const sb = await db();
     const [{ data: subs }, { data: prof }] = await Promise.all([
       sb.from("push_subscriptions").select("id, endpoint, p256dh, auth").eq("user_id", m.receiver).then((r: { error: { message: string } | null }) => { if (r.error) throw new Error("banco: " + r.error.message); return r; }),
@@ -88,13 +89,14 @@ Deno.serve(async (req) => {
     if (!subs?.length) return json({ sent: 0 });
 
     webpush.setVapidDetails(APP_URL, pub, priv);
-    const invite = m.body.startsWith("🎤 Convite para cantar");
-    const payload = JSON.stringify({
-      title: `💬 @${prof?.handle ?? "amigo"}`,
-      body: invite ? "🎤 te convidou para cantar junto!" : m.body,
-      url: `${APP_URL}?chat=${m.sender}`,
-      tag: `chat-${m.sender}`,
-    });
+    const h = prof?.handle ?? "alguém";
+    const body = m.body ?? "";
+    const invite = body.startsWith("🎤 Convite para cantar");
+    const payload = JSON.stringify(
+      m.type === "friend" ? { title: "👋 Pedido de amizade", body: `@${h} quer ser seu amigo no Refrão`, url: `${APP_URL}?social=1`, tag: `friend-${m.sender}` }
+      : m.type === "friend_ok" ? { title: "🤝 Amizade aceita", body: `@${h} aceitou seu pedido — mande um oi!`, url: `${APP_URL}?chat=${m.sender}`, tag: `friend-${m.sender}` }
+      : { title: `💬 @${h}`, body: invite ? "🎤 te convidou para cantar junto!" : body, url: `${APP_URL}?chat=${m.sender}`, tag: `chat-${m.sender}` },
+    );
     let sent = 0;
     for (const s of subs) {
       try {

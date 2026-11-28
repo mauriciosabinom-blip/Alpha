@@ -211,6 +211,7 @@ function renderHome() {
     const demo = { title: 'Refrão', artist: 'music' };
     hero.innerHTML = `<div class="hero-empty"><div class="art" style="${bgStyle(demo)}"></div>
       <h2>Sua trilha para o inglês</h2><div class="artist">Escolha uma música e aprenda frase por frase 🎶</div></div>`;
+    $('btnHard').classList.add('hidden');
     $('btnStudy').disabled = true; $('btnLyrics').disabled = true; $('btnKaraoke').disabled = true; $('btnExam').disabled = true; $('miniStats').innerHTML = '';
   } else {
     const st = songStats(song);
@@ -226,6 +227,9 @@ function renderHome() {
     const fresh = song.phrases.filter(p => !p.seen).length;
     $('miniStats').innerHTML = `<div class="glass"><b>${st.mastered}</b><span>🏆 dominadas</span></div>
       <div class="glass"><b>${learning}</b><span>🌱 aprendendo</span></div><div class="glass"><b>${fresh}</b><span>✨ novas</span></div>`;
+    const hard = hardList(song).length;
+    $('btnHard').classList.toggle('hidden', !hard);
+    $('hardCount').textContent = hard ? `${hard} frase${hard > 1 ? 's' : ''} que você arrastou para a esquerda` : '';
     $('btnStudy').disabled = false; $('btnLyrics').disabled = false; $('btnKaraoke').disabled = false; $('btnExam').disabled = false;
   }
 }
@@ -477,8 +481,27 @@ function nextPhrase() {
   return ms.length ? pickRandom(ms) : null;
 }
 
+/* ---------------- frases difíceis ----------------
+ * As que a pessoa já arrastou para a esquerda ("ainda não") e ainda não dominou.
+ * Ordem: mais erros primeiro; empate → nível mais baixo primeiro.            */
+function hardList(song) {
+  if (!song) return [];
+  return song.phrases.filter(p => p.seen && p.wrong > 0 && p.level < MAX_LEVEL)
+    .sort((a, b) => (b.wrong - b.right / 2) - (a.wrong - a.right / 2) || a.level - b.level);
+}
+function startHard() {
+  const song = S.songs[S.activeSongId], list = hardList(song);
+  if (!list.length) { toast('Nenhuma frase difícil agora 🎉 Continue estudando!'); return; }
+  hideWordPop();
+  // fila só com as difíceis: acertou sai da fila; errou volta para o fim
+  session = { left: list.length, done: 0, cur: null, revealed: false, helped: false, queue: list.map(p => [song, p]), hardTotal: list.length, hardOk: 0 };
+  $('card').classList.remove('hidden');
+  toast(`💪 Treino das difíceis: ${list.length} frase${list.length > 1 ? 's' : ''}`);
+  nextCard();
+}
+
 /* ---------------- sessão de cartões ---------------- */
-let session = null; // { left, done, cur:[song,phrase], revealed, helped }
+let session = null; // { left, done, cur:[song,phrase], revealed, helped, queue? (treino das difíceis) }
 function startSession(count, forced) {
   if (!S.songs[S.activeSongId] && !forced) return;
   hideWordPop();
@@ -493,17 +516,21 @@ function endSession() {
 }
 function nextCard(forced) {
   if (!session) return; // fechou o cartão logo depois de responder
-  if (session.left <= 0) {
+  if (session.queue && !session.queue.length) {
+    const t = session.hardTotal;
+    endSession(); confetti(['💪', '⭐', '🎵']); toast(`💪 Difíceis vencidas! ${t} frase${t > 1 ? 's' : ''} acertada${t > 1 ? 's' : ''} nesta rodada`, 4000); return;
+  }
+  if (!session.queue && session.left <= 0) {
     const n = session.done;
     endSession(); toast(n ? `Pronto! ${n} frase${n > 1 ? 's' : ''} treinada${n > 1 ? 's' : ''} ✓` : 'Pronto!'); return;
   }
-  const pair = forced || nextPhrase();
+  const pair = session.queue ? session.queue[0] : forced || nextPhrase();
   if (!pair) { endSession(); toast('Nenhuma frase para estudar ainda.'); return; }
   session.cur = pair; session.revealed = false; session.helped = false;
-  const md = modeOf(pair[0]);
+  const md = session.queue ? 'hard' : modeOf(pair[0]);
   if (md === 'seq') { pair[0].cursor = pair[1].order; pair[0].cursorDone = false; }
   if (md === 'lyric' && forced) { const i = sungOrder(pair[0]).indexOf(pair[1]); if (i >= 0) pair[0].lyricPos = i; }
-  if (md !== 'random') touch(pair[0]);
+  if (md !== 'random' && md !== 'hard') touch(pair[0]);
   save();
   recent = [pair[1].id, ...recent.filter(x => x !== pair[1].id)].slice(0, 3);
   renderCard();
@@ -531,16 +558,17 @@ function renderCard() {
   $('cardNotes').innerHTML = Array.from({ length: MAX_LEVEL }, (_, i) => `<i class="${i < lvl ? 'on' : ''}">♪</i>`).join('');
   const art = bgStyle(song);
   if ($('cardArt').dataset.song !== song.id) { $('cardArt').style.cssText = art; $('cardThumb').style.cssText = art; $('cardArt').dataset.song = song.id; }
-  const md = modeOf(song);
+  const md = session.queue ? 'hard' : modeOf(song);
   // "Na ordem": posição da frase na música (ex.: 3/50). Demais modos: meta do dia (ex.: 7/20).
   const ordered = md === 'seq' ? [...song.phrases].sort((a, b) => a.order - b.order) : null;
   $('seqNav').classList.toggle('hidden', !ordered);
   if (ordered) { const i = ordered.indexOf(p); $('btnPrev').disabled = i <= 0; $('btnNext').disabled = i >= ordered.length - 1; }
-  $('cardCount').textContent = ordered ? `🎵 ${ordered.indexOf(p) + 1}/${ordered.length}` : isFinite(session.left) ? `${session.done + 1}/${session.done + session.left}` : `${S.daily.done}/${S.settings.goal}`;
+  $('cardCount').textContent = md === 'hard' ? `💪 ${session.hardOk + 1}/${session.hardTotal}` : ordered ? `🎵 ${ordered.indexOf(p) + 1}/${ordered.length}` : isFinite(session.left) ? `${session.done + 1}/${session.done + session.left}` : `${S.daily.done}/${S.settings.goal}`;
   $('cardCount').classList.toggle('hidden', false);
 
   let banner = '';
-  if (!p.seen) banner = p.count > 1 ? `⭐ Frase nova · aparece ${p.count}x na música` : '✨ Frase nova';
+  if (md === 'hard') banner = `💪 Frase difícil · você errou ${p.wrong}x`;
+  else if (!p.seen) banner = p.count > 1 ? `⭐ Frase nova · aparece ${p.count}x na música` : '✨ Frase nova';
   else if (lvl === MAX_LEVEL) banner = '🏆 Você dominou essa! Ainda lembra?';
   else if (lvl === 4) banner = '🧠 Sem tradução: você sabe o que significa?';
   else if (lvl >= 1) banner = `Nível ${lvl} · complete mentalmente as palavras escondidas`;
@@ -589,7 +617,7 @@ function answer(knew) {
   if (!session?.cur) return;
   const [song, p] = session.cur;
   touch(song);
-  if (modeOf(song) === 'seq') song.cursorDone = true;
+  if (!session.queue && modeOf(song) === 'seq') song.cursorDone = true;
   const now = Date.now(), before = p.level, wasNew = !p.seen;
   let msg, sub = '';
   if (!p.seen) p.seen = true;
@@ -616,6 +644,11 @@ function answer(knew) {
   p.last = now;
   markStudied(); save();
   session.done++; session.left--;
+  if (session.queue) {
+    const item = session.queue.shift();
+    if (knew) session.hardOk++; else session.queue.push(item); // errou: volta no fim da fila
+    session.left = session.queue.length;
+  }
   const fb = $('cardFeedback'); fb.innerHTML = `${msg}<small>${esc(sub)}</small>`; fb.classList.remove('hidden');
   const body = $('cardBody'); body.style.transform = `translateX(${knew ? 60 : -60}px)`; body.style.opacity = '0';
   // música toda dominada?
@@ -679,6 +712,7 @@ function renderLyrics() {
 
 /* ---------------- eventos ---------------- */
 $('btnStudy').onclick = () => startSession(Infinity);
+$('btnHard').onclick = startHard;
 $('hero').onclick = e => {
   const b = e.target.closest('.seg [data-mode]'); if (!b) return;
   const song = S.songs[S.activeSongId]; if (!song || modeOf(song) === b.dataset.mode) return;
@@ -689,7 +723,7 @@ $('hero').onclick = e => {
 };
 $('btnPick').onclick = () => openPick(false);
 $('btnLyrics').onclick = () => { renderLyrics(); show('lyrics'); };
-const APP_VERSION = '2026.11.23 · v31';
+const APP_VERSION = '2026.11.28 · v32';
 function renderStreakBox() {
   backfillDays();
   const set = new Set(S.days || []), names = ['dom', 'seg', 'ter', 'qua', 'qui', 'sex', 'sáb'];

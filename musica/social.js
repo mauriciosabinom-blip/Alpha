@@ -61,6 +61,22 @@ const Social = (() => {
     const n = Object.values(unread).reduce((a, b) => a + b, 0) + friendships.filter(f => f.status === 'pending' && f.addressee === me?.id).length;
     const b = $('socialBadge'); b.textContent = n > 9 ? '9+' : n; b.classList.toggle('hidden', !n);
     try { n ? navigator.setAppBadge?.(n) : navigator.clearAppBadge?.(); } catch (e) {}
+    renderReqCard();
+  }
+  // pedidos de amizade recebidos: card em destaque no topo da tela inicial
+  function renderReqCard() {
+    const box = $('friendReqCard'); if (!box) return;
+    const incoming = me ? friendships.filter(f => f.status === 'pending' && f.addressee === me.id) : [];
+    box.classList.toggle('hidden', !incoming.length);
+    if (!incoming.length) { box.innerHTML = ''; return; }
+    const first = who(incoming[0].requester), n = incoming.length;
+    const faces = incoming.slice(0, 3).map(f => `<span class="freq-face">${avatar(who(f.requester), 44)}</span>`).join('');
+    const title = n === 1 ? `<b>${esc(first.name)}</b> quer ser seu amigo` : `<b>${n} pedidos</b> de amizade`;
+    const sub = n === 1 ? `@${esc(first.handle)} · aceite para conversarem e cantarem juntos` : `@${esc(first.handle)} e mais ${n - 1} querem se conectar com você`;
+    box.innerHTML = `<div class="freq-faces">${faces}</div>
+      <div class="freq-text"><span class="freq-tag">👋 ${n === 1 ? 'Novo pedido' : 'Novos pedidos'}</span><div>${title}</div><small>${sub}</small></div>
+      <div class="freq-actions">${n === 1 ? `<button class="btn primary sm" data-accept="${incoming[0].id}">Aceitar</button><button class="btn sm" data-del="${incoming[0].id}" aria-label="Recusar">✕</button>` : `<button class="btn primary sm" data-open="1">Ver todos</button>`}</div>`;
+    window.Profile?.hydrate(box);
   }
 
   /* ---------- tempo real ---------- */
@@ -71,7 +87,7 @@ const Social = (() => {
       .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'messages', filter: `sender=eq.${me.id}` }, p => onReceipt(p.new))
       .on('postgres_changes', { event: '*', schema: 'public', table: 'friendships' }, async p => {
         const f = p.new && p.new.id ? p.new : null;
-        if (p.eventType === 'INSERT' && f?.addressee === me.id) { await loadProfiles([f.requester]); toast(`👋 @${who(f.requester).handle} quer ser seu amigo`, 4000); }
+        if (p.eventType === 'INSERT' && f?.addressee === me.id) { await loadProfiles([f.requester]); window.Push?.chime(); toast(`👋 @${who(f.requester).handle} quer ser seu amigo`, 4000); }
         if (p.eventType === 'UPDATE' && f?.status === 'accepted' && f.requester === me.id) { await loadProfiles([f.addressee]); toast(`🤝 @${who(f.addressee).handle} aceitou sua amizade`, 4000); setTimeout(() => window.Push?.maybeAsk('friend'), 2500); }
         refresh().catch(() => {});
       })
@@ -118,9 +134,9 @@ const Social = (() => {
     const outgoing = friendships.filter(f => f.status === 'pending' && f.requester === me.id);
     const friends = friendships.filter(f => f.status === 'accepted').map(other)
       .sort((a, b) => (lastByFriend[b]?.created_at || '').localeCompare(lastByFriend[a]?.created_at || ''));
-    $('socialRequests').innerHTML = incoming.length ? `<h4>Pedidos de amizade</h4>` + incoming.map(f => { const p = who(f.requester);
-      return `<div class="person glass">${avatar(p)}<div class="pinfo"><b>${esc(p.name)}</b><span class="muted small">@${esc(p.handle)}</span></div>
-        <button class="btn primary sm" data-accept="${f.id}">Aceitar</button><button class="btn sm" data-del="${f.id}" aria-label="Recusar">✕</button></div>`; }).join('') : '';
+    $('socialRequests').innerHTML = incoming.length ? `<div class="freq-box"><div class="freq-head">👋 Pedidos de amizade <span class="badge">${incoming.length}</span></div>` + incoming.map(f => { const p = who(f.requester);
+      return `<div class="person freq-person">${avatar(p)}<div class="pinfo"><b>${esc(p.name)}</b><span class="muted small">@${esc(p.handle)} quer ser seu amigo</span></div>
+        <button class="btn primary sm" data-accept="${f.id}">Aceitar</button><button class="btn sm" data-del="${f.id}" aria-label="Recusar">✕</button></div>`; }).join('') + `</div>` : '';
     $('socialFriends').innerHTML = `<h4>Conversas</h4>` + (friends.length ? friends.map(id => { const p = who(id), last = lastByFriend[id], n = unread[id] || 0;
       const prev = last ? (window.Duet?.isInvite(last.body) ? '🎤 Convite para cantar' : (last.sender === me.id ? 'Você: ' : '') + (last.kind === 'sticker' ? last.body + ' Figurinha' : last.body)) : 'Diga oi! 👋';
       return `<button class="person glass chatrow" data-chat="${esc(id)}">${avatar(p)}<div class="pinfo"><b>${esc(p.name)} <span class="muted small">@${esc(p.handle)}</span></b>
@@ -210,6 +226,13 @@ const Social = (() => {
   /* ---------- eventos ---------- */
   $('btnSocial').onclick = () => { show('social'); renderSocial(); window.Push?.render(); if (me) refresh().catch(() => {}); };
   $('socialBack').onclick = () => show('home');
+  const openSocial = () => { show('social'); renderSocial(); window.Push?.render(); if (me) refresh().catch(() => {}); };
+  $('friendReqCard').onclick = e => {
+    const t = e.target.closest('[data-accept],[data-del],[data-open]');
+    if (!t || t.dataset.open) return openSocial();
+    if (t.dataset.accept) act(async () => { const r = await sb.from('friendships').update({ status: 'accepted' }).eq('id', t.dataset.accept); if (r.error) throw r.error; confetti?.(['🤝', '🎵', '✨']); toast('🤝 Agora vocês são amigos!'); setTimeout(() => window.Push?.maybeAsk('friend'), 2500); });
+    if (t.dataset.del) act(async () => { const r = await sb.from('friendships').delete().eq('id', t.dataset.del); if (r.error) throw r.error; toast('Pedido recusado'); });
+  };
   $('socialRelogin').onclick = () => { localStorage.removeItem('refrao.auth'); location.reload(); };
   $('socialSearch').oninput = e => { clearTimeout(searchTimer); searchTimer = setTimeout(() => search(e.target.value), 300); };
   $('social').onclick = e => {
@@ -254,7 +277,7 @@ const Social = (() => {
     },
     stop() { if (live) sb.removeChannel(live); live = null; me = null; },
     send: (text) => send(text, true), sendMedia,
-    get me() { return me; }, who, openChat, refresh
+    get me() { return me; }, who, openChat, refresh, openSocial
   };
 })();
 window.Social = Social;
